@@ -4,16 +4,20 @@ Track A (sync) turns Laminar traces into **turn items**. Track B (signal) classi
 This file is the agreement between the two. The gold files in `eval/gold/` follow it too, so the
 classifier sees test cases and live data in exactly the same shape.
 
-**Status:** draft, v1. Change it here first, then in code.
+**Status:** draft, v1.1. Change it here first, then in code.
+
+*v1.1 (Oct 26): the hand-off is now a database table (`turns`) instead of a function call. The item
+itself is unchanged, so items still say `"contract": "v1"`. Table definitions: `schema.sql`.*
 
 ## The unit
 
 One item = **one turn to judge, plus the conversation history before it.**
 
 - A *turn* is one visitor message and the assistant's response to it (one Laminar trace).
-- Track A sends one item per new turn. History repeats across items; that's fine.
-- Track B calls `classify(item)` once per item. For the prototype the hand-off is a plain function
-  call with a JSON-serializable dict, so a fixture file and live data are interchangeable.
+- Track A produces one item per new turn. History repeats across items; that's fine.
+- Track A writes each item as a row in the `turns` table (Postgres). Track B reads the rows that have
+  no result yet and calls `classify(item)` once per item. Gold files load into the same table, so
+  test cases and live data stay interchangeable.
 
 ## Example
 
@@ -85,15 +89,16 @@ One item = **one turn to judge, plus the conversation history before it.**
 
 ## Who does what
 
-- **Track A** produces items: reconstructs turns from Laminar spans, applies the cap, sends one item
-  per new target turn, and never sends the same `trace_id` as a target twice (the results table's
-  unique key is the backstop).
-- **Track B** consumes items: applies a signal's view, calls the Decisions API, stores the result
-  keyed by the target turn's `trace_id`.
+- **Track A** produces items: reconstructs turns from Laminar spans, applies the cap, and writes one
+  `turns` row per new target turn. The table's unique key on the target `trace_id` guarantees no
+  target is written twice.
+- **Track B** consumes items: reads `turns` rows with no result yet, applies a signal's view, calls
+  the Decisions API, and stores the result linked to its `turns` row.
 - **Gold files** (`eval/gold/*.jsonl`) wrap an item as `case["conversation"]`, next to `expected`,
   `split` and `source`. Only `case["conversation"]` goes to the classifier.
 
 ## Open questions
 
 - Should the cap be measured in turns or in size (tool outputs can be large)?
-- Does the results table need anything from the item besides the target `trace_id`?
+- Do results link to turns by the `turns` row's own `id` or by the target `trace_id`? Gold rows have
+  no `trace_id`, which favors `id`.
