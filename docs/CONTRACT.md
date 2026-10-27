@@ -86,6 +86,9 @@ One item = **one turn to judge, plus the conversation history before it.**
 5. **Turn order comes from trace start time** within a session. Track A assigns `index` from that order.
 6. **A crashed turn** (a trace with an error status and no reply) stays in the history with
    `reply: null`. It is never a target.
+7. **Results link by `turns.id`**, including gold turns without a trace ID. Each result stores a
+   signal, question version, and raw probability. Join to `turns` for the item and Laminar trace ID.
+   Increment the question version when the question, model, or input handling changes.
 
 ## Who does what
 
@@ -100,5 +103,3 @@ One item = **one turn to judge, plus the conversation history before it.**
 ## Open questions
 
 - Should the cap be measured in turns or in size (tool outputs can be large)?
-- Do results link to turns by the `turns` row's own `id` or by the target `trace_id`? Gold rows have
-  no `trace_id`, which favors `id`.
