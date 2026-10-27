@@ -91,6 +91,18 @@ class LiveApiTests(unittest.TestCase):
         count = self.connection.execute("SELECT count(*) AS n FROM results").fetchone()["n"]
         self.assertEqual(count, 0)
 
+    def test_laminar_link_comes_from_env_and_is_omitted_when_unset(self):
+        self.add_live(1, 0.5)
+        project = "http://localhost:5667/project/abc/"
+        with patch.dict(os.environ, {"LMNR_UI_PROJECT_URL": project}):
+            turn = self.get()[1]["turns"][0]
+        self.assertEqual(
+            turn["laminar_url"],
+            f"http://localhost:5667/project/abc/traces?traceId={turn['trace_id']}",
+        )
+        with patch.dict(os.environ, {"LMNR_UI_PROJECT_URL": ""}):
+            self.assertIsNone(self.get()[1]["turns"][0]["laminar_url"])
+
     def test_limit_caps_rows_and_is_validated(self):
         for n in range(3):
             self.add_live(n, 0.5)

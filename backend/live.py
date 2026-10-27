@@ -1,5 +1,7 @@
 """Read-only queries for the Live view: scored live turns and how many are still waiting."""
 
+import os
+
 from classifier.config import QUESTION_VERSION, SIGNAL
 
 LIVE_RESULTS_SQL = """
@@ -22,6 +24,12 @@ WHERE t.source = 'live' AND r.turn_id IS NULL
 """
 
 
+def laminar_url(trace_id):
+    # e.g. http://localhost:5667/project/<project id>, from the root .env. Unset: no link.
+    project_url = os.environ.get("LMNR_UI_PROJECT_URL", "").rstrip("/")
+    return f"{project_url}/traces?traceId={trace_id}" if project_url else None
+
+
 def load_live(connection, limit=200):
     rows = connection.execute(LIVE_RESULTS_SQL, (SIGNAL, QUESTION_VERSION, limit)).fetchall()
     pending = connection.execute(PENDING_LIVE_SQL, (SIGNAL, QUESTION_VERSION)).fetchone()["pending"]
@@ -35,6 +43,7 @@ def load_live(connection, limit=200):
                 "turn_id": row["id"],
                 "probability": row["probability"],
                 "trace_id": str(row["trace_id"]),
+                "laminar_url": laminar_url(row["trace_id"]),
                 "conversation_id": row["conversation_id"],
                 "target_index": row["target_index"],
                 "turn_ended_at": row["turn_ended_at"].isoformat(),

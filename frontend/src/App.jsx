@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import LiveView from "./LiveView.jsx";
 
 const FILTERS = [
   ["all", "All outcomes"],
@@ -55,7 +56,7 @@ function validateReport(report) {
   return report;
 }
 
-function ConversationDetails({ conversation }) {
+export function ConversationDetails({ conversation }) {
   const turns = conversation?.turns ?? [];
   if (!turns.length)
     return (
@@ -256,6 +257,8 @@ function EmptyState({ split, threshold, loading, error }) {
 }
 
 export default function App() {
+  // Evaluations stays mounted while hidden, so its split, threshold and filter survive a tab switch.
+  const [view, setView] = useState("evaluations");
   const [report, setReport] = useState(null);
   const [split, setSplit] = useState("dev");
   const [threshold, setThreshold] = useState(0.5);
@@ -330,7 +333,22 @@ export default function App() {
           <span>Signals</span>
         </a>
         <nav aria-label="Main navigation">
-          <span className="nav-current">Evaluations</span>
+          <button
+            className="nav-tab"
+            type="button"
+            aria-current={view === "evaluations" ? "page" : undefined}
+            onClick={() => setView("evaluations")}
+          >
+            Evaluations
+          </button>
+          <button
+            className="nav-tab"
+            type="button"
+            aria-current={view === "live" ? "page" : undefined}
+            onClick={() => setView("live")}
+          >
+            Live
+          </button>
         </nav>
         <span className="local-badge">
           <span className="status-dot" />
@@ -338,7 +356,7 @@ export default function App() {
         </span>
       </header>
 
-      <main id="top" className="page-content">
+      <main id="top" className="page-content" hidden={view !== "evaluations"}>
         <section className="page-heading">
           <div>
             <p className="breadcrumb">
@@ -510,6 +528,7 @@ export default function App() {
           </>
         )}
       </main>
+      <LiveView hidden={view !== "live"} />
     </div>
   );
 }
