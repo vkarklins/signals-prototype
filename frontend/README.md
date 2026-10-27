@@ -30,7 +30,7 @@ For a new checkout, create a root `.env` using `.env.example` as a starting poin
 
 ```dotenv
 POSTGRES_PASSWORD=local_dev_password
-DATABASE_URL=postgresql://signals:local_dev_password@localhost:5433/signals_prototype
+DATABASE_URL=postgresql://signals:local_dev_password@localhost:5434/signals_prototype
 ```
 
 The password in `DATABASE_URL` must match `POSTGRES_PASSWORD`. Keep credentials in the root `.env`; the frontend uses no database credentials.
@@ -41,7 +41,7 @@ Start the database with this command on any supported OS:
 docker compose up -d --wait db
 ```
 
-Docker creates `signals_prototype` and applies `schema.sql` on the first startup. Port 5433 keeps this database separate from an existing local Postgres server on port 5432. Each developer has their own database; existing data from a separate Postgres installation is not copied.
+Docker creates `signals_prototype` and applies `schema.sql` on the first startup. Port 5434 keeps this database separate from a local Postgres server (5432) and from Laminar's own Postgres (5433). Each developer has their own database; existing data from a separate Postgres installation is not copied.
 
 Data stays in the `postgres_data` Docker volume when the container stops. To stop the database:
 
@@ -76,7 +76,7 @@ Add `--split test --threshold <chosen-value>` only for the final test run after 
 In a terminal at the repository root, with the virtual environment active:
 
 ```bash
-python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
+python -m uvicorn backend.app:app --host 127.0.0.1 --port 8100
 ```
 
 `GET /api/results?split=dev` reads saved scores joined to their turns. It matches labels from the existing gold file using `gold_case_id`, so no additional label table is required. `split=test` must be requested explicitly. Empty and incomplete runs include a pending-case count. API requests use read-only database transactions and do not need an OpenAI key.
@@ -89,7 +89,7 @@ npm install
 npm run dev
 ```
 
-Open the local address printed by Vite. It proxies `/api` requests to Python on port 8000. Keep both terminals running; choose Refresh after an evaluation finishes. `npm run preview` also proxies to the API after a build.
+Open the local address printed by Vite. It proxies `/api` requests to Python on port 8100. Keep both terminals running; choose Refresh after an evaluation finishes. `npm run preview` also proxies to the API after a build.
 
 The page starts on dev with a threshold of 0.50. Adjust it on dev, then select test to inspect final results at that same threshold. The test slider is disabled. The threshold stays selected while the page remains open; a page reload starts again on dev at 0.50.
 
