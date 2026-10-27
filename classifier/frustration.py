@@ -1,8 +1,17 @@
+from functools import cache
+
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from classifier.config import MODEL
+
 load_dotenv()
-client = OpenAI()  # Reads OPENAI_API_KEY from your environment.
+
+
+@cache
+def get_client():
+    # Only require credentials when a new score is actually needed.
+    return OpenAI()
 
 
 def classify(item):
@@ -22,8 +31,8 @@ def classify(item):
 
 
 def get_frustration_probability(messages):
-    decision = client.decisions.create(
-        model="gpt-6-luna",
+    decision = get_client().decisions.create(
+        model=MODEL,
         input=messages,
         questions=[
             {

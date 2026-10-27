@@ -1,7 +1,7 @@
 -- Signals prototype: database schema (Postgres 12+).
 -- One file for both tracks; see docs/CONTRACT.md (v1.1).
 --   turns    Track A (sync) writes one row per turn item; Track B reads it.
---   results  Track B (to be added below).
+--   results  Track B stores one probability per turn, signal, and question version.
 --
 -- Apply to a fresh database:  psql -d <database> -f schema.sql
 
@@ -58,5 +58,13 @@ CREATE INDEX turns_live_ended_at_idx ON turns (turn_ended_at) WHERE source = 'li
 
 -- ---------------------------------------------------------------- results (Track B)
 
--- To be added by Track B. Open question (CONTRACT.md): link to turns by turns.id
--- or by trace_id. Gold rows have no trace_id, which favors turns.id.
+CREATE TABLE results (
+    turn_id          bigint NOT NULL REFERENCES turns(id),
+    signal           text NOT NULL,
+    question_version text NOT NULL,
+    probability      real NOT NULL CHECK (probability BETWEEN 0 AND 1),
+
+    -- Keep one score for each signal/question version on each turn.
+    CONSTRAINT results_turn_signal_question_key
+        PRIMARY KEY (turn_id, signal, question_version)
+);
