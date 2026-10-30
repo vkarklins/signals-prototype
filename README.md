@@ -25,6 +25,9 @@ See [`eval/labeling/README.md`](eval/labeling/README.md).
 
 ## Evaluation dashboard
 
+The backend also provides [Signal configuration APIs](docs/SIGNALS_API.md).
+These manage saved definitions only; structured event detection is not running yet.
+
 See [`frontend/README.md`](frontend/README.md) to configure Postgres, save classifier scores, and run the API and React page. The dashboard loads results automatically without file uploads.
 
 ## Run everything with Docker
@@ -68,6 +71,9 @@ by itself. To work on one piece directly, stop its service (`docker compose stop
 
 ## Running pieces directly (without Docker)
 
+For an existing database, see [database migrations](migrations/README.md) to add
+the configurable Signal detection tables. Fresh databases include them automatically.
+
 Create a virtual environment and `pip install -r requirements-dev.txt -r sync/requirements.txt`.
 With `.env` filled in and the database running (`docker compose up -d --wait db`), each piece runs from the repo root:
 
@@ -79,3 +85,7 @@ cd frontend && npm install && npm run dev
 ```
 
 See [`frontend/README.md`](frontend/README.md) for the evaluation dashboard, the evaluator and the checks.
+
+Configurable Signal analysis can now run as a separate worker. See
+[Signal worker usage and behavior](docs/SIGNALS_WORKER.md) for watch, backfill,
+status and manual retry commands. The existing User Frustration pipeline remains separate.

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import SignalsView from "./SignalsView.jsx";
 import LiveView from "./LiveView.jsx";
 
 const FILTERS = [
@@ -349,6 +350,7 @@ export default function App() {
           >
             Live
           </button>
+          <button className="nav-tab" type="button" aria-current={view === "signals" ? "page" : undefined} onClick={() => setView("signals")}>Signals</button>
         </nav>
         <span className="local-badge">
           <span className="status-dot" />
@@ -528,6 +530,7 @@ export default function App() {
           </>
         )}
       </main>
+      <SignalsView hidden={view !== "signals"} />
       <LiveView hidden={view !== "live"} />
     </div>
   );

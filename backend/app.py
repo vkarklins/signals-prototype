@@ -4,9 +4,13 @@ import psycopg
 from fastapi import FastAPI, HTTPException, Query, Response
 
 from backend.live import load_live
+from backend.signals import router as signals_router
 from eval.storage import connect_database, load_gold, load_report
 
 app = FastAPI(title="Signals evaluation API")
+app.include_router(signals_router)
+from backend.signal_activity import router as activity_router
+app.include_router(activity_router)
 
 
 @app.get("/api/results")

@@ -1,0 +1,25 @@
+.signal-tabs {display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap;}
+.signal-tabs button, .signal-actions button {font:inherit; background:var(--paper); border:1px solid var(--line); padding:9px 14px; border-radius:5px;}
+.signal-tabs button[aria-pressed=true] {background:var(--accent);color:white;border-color:var(--accent);}
+.signal-layout {display:grid;grid-template-columns:minmax(0, .85fr) minmax(0,1.15fr);gap:28px;align-items:start;}
+.signal-card, .signal-editor {background:var(--paper);border:1px solid var(--line);padding:20px;border-radius:8px;margin-bottom:16px;overflow-wrap:anywhere;}
+.signal-layout section > button {margin-bottom:16px;}
+.signal-card h2, .signal-editor h2 {font-size:18px;margin:0 0 12px;}
+.signal-card p {line-height:1.6;font-size:14px;max-width:75ch;white-space:pre-wrap;}
+.signal-editor label {display:grid;gap:8px;margin:16px 0;font-size:14px;}
+.signal-editor input:not([type=checkbox]), .signal-editor textarea {width:100%;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:10px;}
+.signal-editor textarea {resize:vertical;line-height:1.5;}
+.signal-editor textarea:focus-visible {outline:3px solid #77aaa9;outline-offset:3px;}
+.signal-editor .schema-input {font-family:monospace;font-size:13px;}
+.signal-editor .signal-checkbox {display:flex;align-items:center;}
+.signal-help {color:var(--muted);font-size:13px;line-height:1.6;}
+.signal-card-heading, .signal-actions {display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between;}
+.signal-actions {justify-content:flex-start;margin-top:16px;}
+.signal-status {font-size:12px;padding:4px 9px;background:var(--canvas);border-radius:4px;}
+.status-failed, .status-critical {background:var(--false-soft);color:var(--false);}
+.status-succeeded {background:var(--good-soft);color:var(--good);}
+.status-warning {background:var(--miss-soft);color:var(--miss);}
+.signal-card pre {white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;}
+.signal-card details {margin:16px 0;}
+.signal-card summary {cursor:pointer;}
+@media(max-width:760px) {.signal-layout {grid-template-columns:1fr;}}

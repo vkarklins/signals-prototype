@@ -85,7 +85,7 @@ class LiveClassificationTests(unittest.TestCase):
     def setUp(self):
         self.enterContext(patch.dict(os.environ, {"DATABASE_URL": self.database_url}))
         self.connection = self.enterContext(storage.connect_database())
-        self.connection.execute("TRUNCATE results, turns RESTART IDENTITY")
+        self.connection.execute("TRUNCATE signal_events, signal_runs, results, turns RESTART IDENTITY")
         self.skipped = set()
 
     def add_live(self, n):

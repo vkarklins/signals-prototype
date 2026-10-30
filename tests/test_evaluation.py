@@ -142,7 +142,7 @@ class DatabaseEvaluationTests(unittest.TestCase):
         gold.write_text("\n".join(json.dumps(case) for case in self.cases) + "\n\n")
         self.enterContext(patch("eval.storage.GOLD", gold))
         self.connection = self.enterContext(storage.connect_database())
-        self.connection.execute("TRUNCATE results, turns RESTART IDENTITY")
+        self.connection.execute("TRUNCATE signal_events, signal_runs, results, turns RESTART IDENTITY")
         self.client = TestClient(app)
 
     def evaluate(self, split="dev", threshold=0.5):

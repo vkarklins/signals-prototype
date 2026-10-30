@@ -36,7 +36,7 @@ class LiveApiTests(unittest.TestCase):
     def setUp(self):
         self.enterContext(patch.dict(os.environ, {"DATABASE_URL": self.database_url}))
         self.connection = self.enterContext(storage.connect_database())
-        self.connection.execute("TRUNCATE results, turns RESTART IDENTITY")
+        self.connection.execute("TRUNCATE signal_events, signal_runs, results, turns RESTART IDENTITY")
         self.client = TestClient(app)
 
     def add_live(self, n, probability=None, version="v1"):
