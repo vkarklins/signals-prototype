@@ -133,3 +133,7 @@ enabled Signal, choose a local start date/time, and click **Queue backfill**.
 The browser converts the local timestamp to UTC. Save definition edits first.
 Review progress in Runs, then View events. Zero queued runs means no eligible
 synced turns or all matching turns already have runs for that version.
+
+## Signal health
+
+`GET /api/signal-health?period=7d` returns reporting boundaries, totals, and per-Signal counts for completed, queued, running, failed analyses and findings, plus success rate and most recent completion. Allowed periods: `24h`, `7d` (default), `30d`, `all`. Includes disabled Signals and all versions; runs are selected by creation time. Success rate is successful / (successful + failed), or null with no finished runs. Most recent completion includes successful and failed runs. Retries update current status rather than preserving attempt history. This read-only endpoint measures processing reliability, not detection accuracy or worker availability.

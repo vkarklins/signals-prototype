@@ -1,5 +1,6 @@
 """Read analysis activity and queue retries; never invoke models in requests."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from typing import Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator
 from classifier.config import MODEL
@@ -82,3 +83,39 @@ def queue_backfill(signal_id: UUID, body: BackfillRequest):
         version = conn.execute('SELECT max(version) AS version FROM signal_versions WHERE signal_id=%s', (signal_id,)).fetchone()['version']
         queued = enqueue(conn, body.since, MODEL, signal_id=signal_id)
     return {'signal_id': signal_id, 'signal_version': version, 'queued_runs': queued, 'since': body.since}
+
+
+@router.get('/api/signal-health')
+def signal_health(response: Response, period: Literal['24h', '7d', '30d', 'all'] = '7d'):
+    """Current run states across all versions, grouped by creation time."""
+    response.headers['Cache-Control'] = 'no-store'
+    end = datetime.now(timezone.utc)
+    start = None if period == 'all' else end - timedelta(days={'24h': 1, '7d': 7, '30d': 30}[period])
+    with database(read_only=True) as conn:
+        rows = conn.execute("""WITH selected AS (
+            SELECT * FROM signal_runs WHERE (%s::timestamptz IS NULL OR created_at >= %s)
+                AND created_at <= %s
+        ), events AS (
+            SELECT e.run_id, count(*) AS findings FROM signal_events e
+            JOIN selected r ON r.id=e.run_id GROUP BY e.run_id
+        )
+        SELECT s.id, s.name, s.enabled,
+            count(r.id) FILTER (WHERE r.status='succeeded') AS completed,
+            count(r.id) FILTER (WHERE r.status='pending') AS queued,
+            count(r.id) FILTER (WHERE r.status='running') AS running,
+            count(r.id) FILTER (WHERE r.status='failed') AS failed,
+            coalesce(sum(e.findings), 0)::bigint AS findings,
+            max(r.finished_at) AS last_completion
+        FROM signals s LEFT JOIN selected r ON r.signal_id=s.id
+        LEFT JOIN events e ON e.run_id=r.id
+        GROUP BY s.id ORDER BY lower(s.name), s.id""", (start, start, end)).fetchall()
+    def rate(row):
+        finished = row['completed'] + row['failed']
+        return row['completed'] / finished if finished else None
+    totals = {key: sum(row[key] for row in rows)
+              for key in ('completed', 'queued', 'running', 'failed', 'findings')}
+    totals['success_rate'] = rate(totals)
+    totals['last_completion'] = max((r['last_completion'] for r in rows
+                                     if r['last_completion']), default=None)
+    return {'period': period, 'start': start, 'end': end, 'totals': totals,
+            'signals': [{**row, 'success_rate': rate(row)} for row in rows]}

@@ -14,6 +14,7 @@ function TraceLink({url}) {
   return url ? <a href={url} target="_blank" rel="noreferrer">View trace ↗</a> : <span>Trace link not configured</span>;
 }
 export default function SignalsView({hidden}) {
+  const [period, setPeriod] = useState('7d'), [health, setHealth] = useState(null);
   const [tab, setTab] = useState('definitions');
   const [signals, setSignals] = useState([]), [rows, setRows] = useState([]);
   const [draft, setDraft] = useState(blank), [editing, setEditing] = useState(null);
@@ -25,14 +26,14 @@ export default function SignalsView({hidden}) {
     if (hidden) return;
     let cancelled = false;
     setLoading(true); setError(''); setRows([]);
-    const path = tab === 'definitions' ? 'signals' : tab === 'runs'
+    const path = tab === 'health' ? `signal-health?period=${period}` : tab === 'definitions' ? 'signals' : tab === 'runs'
       ? `signal-runs?limit=50&offset=${offset}`
       : `signal-events?limit=50&offset=${offset}${run ? `&run_id=${encodeURIComponent(run)}` : ''}`;
-    request(path).then(data => {if (!cancelled) { if (tab === 'definitions') setSignals(data); else setRows(data); }})
+    request(path).then(data => {if (!cancelled) { if (tab === 'health') setHealth(data); else if (tab === 'definitions') setSignals(data); else setRows(data); }})
       .catch(e => {if (!cancelled) setError(e.message);})
       .finally(() => {if (!cancelled) setLoading(false);});
     return () => {cancelled = true;};
-  }, [hidden, tab, offset, run, refresh]);
+  }, [hidden, tab, offset, run, refresh, period]);
   function changeTab(value) {setTab(value); setOffset(0); setRun(''); setNotice('');}
   async function save(event) {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
@@ -65,13 +66,33 @@ export default function SignalsView({hidden}) {
   // Send only editable fields, including after loading a saved response.
   function field(key, value) {setDraft(d => ({...d, [key]: value}));}
   return <main className="page-content signals-page" hidden={hidden}>
-    <section className="page-heading"><div><h1>Signals</h1><p className="page-description">Define what to look for. Review what happened.</p></div>
+    <section className="page-heading"><div><p className="breadcrumb">Observability <span>/</span> Signals</p><h1>Signals</h1><p className="page-description">Define what to look for. Review what happened.</p></div>
       <button className="secondary-button" disabled={loading || busy} onClick={() => setRefresh(x => x + 1)}>Refresh</button></section>
-    <div className="signal-tabs" aria-label="Signal views">{['definitions','runs','events'].map(t => <button key={t} aria-pressed={tab === t} onClick={() => changeTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>)}</div>
+    <div className="signal-tabs" aria-label="Signal views">{['definitions','runs','events','health'].map(t => <button key={t} aria-pressed={tab === t} onClick={() => changeTab(t)}>{t[0].toUpperCase()+t.slice(1)}</button>)}</div>
     {error && <p className="error-message" role="alert">{error}</p>}
     {notice && <p role="status" className="results-notice">{notice}</p>}
     {loading && <p role="status">Loading…</p>}
-    {tab === 'definitions' ? <>
+    {tab === 'health' ? <section aria-label="Signal health">
+      <div className="data-toolbar"><label className="filter-control">Reporting period <select value={period} onChange={e => setPeriod(e.target.value)}>
+        <option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="all">All time</option>
+      </select></label><span className="split-badge">All versions</span></div>
+      <p className="signal-help">All Signal versions, grouped by when analysis was queued. Analysis success rate measures processing reliability, not detection accuracy. Retries update the current run status. Use Refresh to load updates.</p>
+      {!loading && !error && health && <>
+        <HealthSummary row={health.totals} />
+        <section className="results-section">
+          <div className="results-toolbar"><div><h2>Signal overview</h2><p>Current analysis status for each Signal</p></div></div>
+          <div className="table-scroll"><table className="signal-health-table"><thead><tr>
+            {['Signal', 'Completed', 'Queued', 'Running', 'Failed', 'Findings', 'Success rate', 'Last completion'].map(label => <th scope="col" key={label}>{label}</th>)}
+          </tr></thead><tbody>
+            {!health.signals.length && <tr><td colSpan="8" className="empty-table">No Signals yet. Create one in Definitions.</td></tr>}
+            {health.signals.map(row => <tr key={row.id}><td><p className="message-text">{row.name}</p><span className="message-meta">{row.enabled ? 'Enabled' : 'Disabled'}</span></td>
+              <td>{row.completed}</td><td>{row.queued}</td><td>{row.running}</td><td>{row.failed}</td><td>{row.findings}</td>
+              <td>{successRate(row.success_rate)}</td><td>{row.last_completion ? new Date(row.last_completion).toLocaleString() : '—'}</td>
+            </tr>)}
+          </tbody></table></div>
+        </section>
+      </>}
+    </section> : tab === 'definitions' ? <>
       <form className="signal-editor" onSubmit={backfill} aria-label="Backfill previous conversations">
         <h2>Analyze previous conversations</h2>
         <p className="signal-help">Backfill synced turns using one Signal’s latest saved version. Existing runs are skipped; earlier results are preserved. Analysis uses paid model calls.</p>
@@ -96,17 +117,46 @@ export default function SignalsView({hidden}) {
         <label className="signal-checkbox"><input type="checkbox" checked={draft.enabled} onChange={e => field('enabled',e.target.checked)} />Enabled</label>
         <button className="secondary-button" disabled={busy}>{busy ? 'Saving…' : 'Save Signal'}</button>
       </form></div></> : <>
-      <p className="signal-help">Showing up to 50 {tab} per page. Refresh to load worker updates.</p>
-      {run && <p>Events for run {run} <button onClick={() => {setRun(''); setOffset(0);}}>Show all events</button></p>}
-      {!loading && !error && !rows.length && <p className="empty-state">No {tab} here yet. Enabled Signals produce runs when the detection worker analyzes new conversations.</p>}
-      {rows.map(row => <article className="signal-card" key={row.id}>
-        <div className="signal-card-heading"><h2>{tab === 'runs' ? row.signal_name : row.summary}</h2><span className={`signal-status status-${row.status || row.severity}`}>{row.status || row.severity}</span></div>
-        <p>{row.signal_name} · Version {row.signal_version} · Turn {row.turn_id}</p>
-        {tab === 'runs' ? <><p>{row.user_message}</p><p>{row.event_count} events · {new Date(row.created_at).toLocaleString()}</p>{row.error && <p role="status">{row.error}</p>}
-          <div className="signal-actions">{row.status === 'failed' && <button disabled={busy} onClick={() => retry(row.id)}>Retry analysis</button>}<button onClick={() => {setRun(row.id); setOffset(0); setTab('events');}}>View events</button><TraceLink url={row.laminar_url} /></div></>
-          : <><p><strong>Evidence:</strong> {row.evidence}</p><details><summary>Custom fields and span citations</summary><pre>{JSON.stringify({payload: row.payload, supporting_span_ids: row.supporting_span_ids},null,2)}</pre></details><TraceLink url={row.laminar_url} /></>}
-      </article>)}
+      <section className="results-section">
+        <div className="results-toolbar"><div><h2>{tab === 'runs' ? 'Signal runs' : 'Signal events'}</h2><p>Showing up to 50 {tab} per page. Refresh to load updates.</p></div>
+          {run && <button className="secondary-button" onClick={() => {setRun(''); setOffset(0);}}>Show all events</button>}
+        </div>
+        {run && <p className="signal-help signal-run-filter">Events for run {run}</p>}
+        <div className="table-scroll"><table className="signal-activity-table"><thead><tr>
+          <th scope="col">{tab === 'runs' ? 'Latest user message' : 'Finding'}</th><th scope="col">Signal</th><th scope="col">{tab === 'runs' ? 'Status' : 'Severity'}</th><th scope="col">Created</th><th scope="col">Details</th>
+        </tr></thead><tbody>
+          {!loading && !error && !rows.length && <tr><td colSpan="5" className="empty-table">No {tab} here yet. Enabled Signals analyze new conversations when the worker is running.</td></tr>}
+          {rows.map(row => <tr key={row.id}>
+            <td><p className="message-text">{tab === 'runs' ? row.user_message : row.summary}</p>
+              {tab === 'events' && <details><summary>View evidence</summary><p>{row.evidence}</p><pre>{JSON.stringify({payload: row.payload, supporting_span_ids: row.supporting_span_ids}, null, 2)}</pre></details>}
+              {row.error && <p className="signal-run-error">{row.error}</p>}
+            </td>
+            <td><p className="message-text">{row.signal_name}</p><span className="message-meta">Version {row.signal_version} · Turn {row.turn_id}</span></td>
+            <td><span className={`signal-status status-${row.status || row.severity}`}>{row.status || row.severity}</span></td>
+            <td>{new Date(row.created_at).toLocaleString()}</td>
+            <td><div className="signal-table-actions">
+              {tab === 'runs' && <>{row.status === 'failed' && <button className="context-toggle" disabled={busy} onClick={() => retry(row.id)}>Retry analysis</button>}<button className="context-toggle" onClick={() => {setRun(row.id); setOffset(0); setTab('events');}}>View {row.event_count} events</button></>}
+              <TraceLink url={row.laminar_url} />
+            </div></td>
+          </tr>)}
+        </tbody></table></div>
+      </section>
       <div className="signal-actions"><button disabled={!offset || loading} onClick={() => setOffset(x => Math.max(0,x-50))}>Previous</button><span>Page {offset/50+1}</span><button disabled={rows.length < 50 || loading} onClick={() => setOffset(x => x+50)}>Next</button></div>
       </>}
   </main>;
+}
+
+function successRate(value) {
+  return value == null ? '—' : `${(value * 100).toFixed(1)}%`;
+}
+
+function HealthSummary({row}) {
+  return <>
+    <section className="metric-grid" aria-label="Analysis totals">
+      <article className="metric-card"><span className="metric-label">Analysis success rate</span><strong className="metric-value">{successRate(row.success_rate)}</strong><span className="metric-note">Successful / finished analyses</span></article>
+      <article className="metric-card"><span className="metric-label">Analyses completed</span><strong className="metric-value">{row.completed}</strong><span className="metric-note">Finished without a processing error</span></article>
+      <article className="metric-card case-total-card"><span className="metric-label">Findings</span><strong className="metric-value">{row.findings}</strong><span className="metric-note">Issues detected across all Signals</span></article>
+    </section>
+    <div className="outcome-summary"><span><i className="legend-dot dot-correct" />{row.queued} queued</span><span><i className="legend-dot dot-miss" />{row.running} running</span><span><i className="legend-dot dot-false" />{row.failed} failed</span><span>Last completion: {row.last_completion ? new Date(row.last_completion).toLocaleString() : '—'}</span></div>
+  </>;
 }
