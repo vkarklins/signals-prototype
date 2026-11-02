@@ -61,3 +61,33 @@ class ActivityTests(fixtures.WorkerTests):
         self.assertEqual(self.client.post(f'/api/signal-runs/{uuid4()}/retry').status_code,404)
         self.assertEqual(self.client.get('/api/signal-runs?limit=201').status_code,422)
         self.assertEqual(self.client.get('/api/signal-events?offset=-1').status_code,422)
+
+    def test_backfill_queues_selected_latest_version_without_duplicates(self):
+        from datetime import datetime, timezone
+        since = '2000-01-01T00:00:00Z'
+        url = f'/api/signals/{self.sid}/backfill'
+        # An existing run for version 1 must survive and not block version 2.
+        original = self.queue()
+        self.conn.execute("INSERT INTO signal_versions VALUES (%s,2,'New detector',%s,now())", (self.sid, Jsonb(fixtures.SCHEMA)))
+        other = uuid4()
+        self.conn.execute("INSERT INTO signals(id,name,enabled) VALUES (%s,'Other',true)", (other,))
+        self.conn.execute("INSERT INTO signal_versions VALUES (%s,1,'Other',%s,now())", (other, Jsonb(fixtures.SCHEMA)))
+        response = self.client.post(url, json={'since': since})
+        self.assertEqual(response.status_code, 202, response.text)
+        self.assertEqual(response.json()['queued_runs'], 1)
+        self.assertEqual(response.json()['signal_version'], 2)
+        self.assertEqual(self.client.post(url, json={'since': since}).json()['queued_runs'], 0)
+        rows = self.conn.execute('SELECT signal_id,status FROM signal_runs').fetchall()
+        self.assertEqual(len(rows), 2)
+        self.assertTrue(all(row['signal_id'] == self.sid and row['status'] == 'pending' for row in rows))
+        self.assertEqual(self.conn.execute('SELECT count(*) AS n FROM signal_events').fetchone()['n'], 0)
+        self.assertIsNotNone(self.conn.execute('SELECT id FROM signal_runs WHERE id=%s', (original,)).fetchone())
+
+    def test_backfill_rejects_disabled_missing_and_invalid_dates(self):
+        url = f'/api/signals/{self.sid}/backfill'
+        self.conn.execute('UPDATE signals SET enabled=false')
+        self.assertEqual(self.client.post(url,json={'since':'2000-01-01T00:00:00Z'}).status_code,409)
+        self.assertEqual(self.client.post(f'/api/signals/{uuid4()}/backfill',json={'since':'2000-01-01T00:00:00Z'}).status_code,404)
+        for body in ({}, {'since':'bad'}, {'since':'2000-01-01T00:00:00'}, {'since':'2999-01-01T00:00:00Z'}, {'since':'2000-01-01T00:00:00Z','extra':True}):
+            self.assertEqual(self.client.post(url,json=body).status_code,422)
+        self.assertEqual(self.conn.execute('SELECT count(*) AS n FROM signal_runs').fetchone()['n'],0)

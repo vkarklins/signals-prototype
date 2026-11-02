@@ -7,7 +7,7 @@ from detection.engine import TRACE_SQL, reconstruct, analyze, validate_output, E
 LOCK_ID = 739150221
 
 
-def enqueue(conn, since, model):
+def enqueue(conn, since, model, *, signal_id=None):
     """Only current enabled versions; historical selection must be explicit."""
     return conn.execute('''INSERT INTO signal_runs
         (id, turn_id, signal_id, signal_version, model)
@@ -16,8 +16,9 @@ def enqueue(conn, since, model):
         JOIN LATERAL (SELECT version FROM signal_versions WHERE signal_id=s.id
                       ORDER BY version DESC LIMIT 1) v ON true
         WHERE t.source='live' AND t.created_at >= %s AND s.enabled
+          AND (%s::uuid IS NULL OR s.id=%s)
         ON CONFLICT (turn_id, signal_id, signal_version) DO NOTHING''',
-        (model, since)).rowcount
+        (model, since, signal_id, signal_id)).rowcount
 
 
 def process(conn, laminar, run_id, analyzer=analyze):

@@ -114,3 +114,22 @@ Run cards link to their events and offer Retry analysis only for failures. Event
 cards show summary/severity/evidence, expandable custom fields and citations, and
 View trace when LMNR_UI_PROJECT_URL is configured. An empty successful run stays
 visible with zero events. Backfills remain CLI-only and explicit.
+
+## Frontend backfills
+
+`POST /api/signals/{id}/backfill` accepts `{"since":"2026-10-31T00:00:00+08:00"}`.
+The date must include a timezone and cannot be in the future. An enabled Signal
+is required (409 if disabled, 404 if missing). The endpoint queues its latest
+saved version for live turns synced on or after `since` (turns.created_at).
+It returns 202 with `signal_id`, `signal_version`, `since`, and `queued_runs`.
+Runs already present for the same turn/Signal/version are skipped, including
+failed runs (use Retry analysis for those). Only the selected Signal is queued;
+old runs and events are preserved. The definition is locked during selection to
+keep its version consistent with concurrent edits. No model calls occur in the
+request; the detection worker must be running to process the pending queue.
+
+In Signals → Definitions, use **Analyze previous conversations**, select an
+enabled Signal, choose a local start date/time, and click **Queue backfill**.
+The browser converts the local timestamp to UTC. Save definition edits first.
+Review progress in Runs, then View events. Zero queued runs means no eligible
+synced turns or all matching turns already have runs for that version.

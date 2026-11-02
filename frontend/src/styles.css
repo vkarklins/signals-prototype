@@ -32,7 +32,7 @@ button, select, input { font: inherit; }
 button, select { color: var(--ink); }
 button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid #77aaa9; outline-offset: 3px; }
 button { cursor: pointer; }
-button:disabled { cursor: wait; opacity: .65; }
+button:disabled { cursor: not-allowed; opacity: .65; }
 input:disabled { cursor: not-allowed; opacity: .65; }
 
 .app-shell { min-height: 100vh; background: var(--canvas); }

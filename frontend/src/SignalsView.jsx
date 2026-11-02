@@ -18,6 +18,7 @@ export default function SignalsView({hidden}) {
   const [signals, setSignals] = useState([]), [rows, setRows] = useState([]);
   const [draft, setDraft] = useState(blank), [editing, setEditing] = useState(null);
   const [offset, setOffset] = useState(0), [run, setRun] = useState('');
+  const [backfillSignal, setBackfillSignal] = useState(''), [since, setSince] = useState('');
   const [refresh, setRefresh] = useState(0), [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   useEffect(() => {
@@ -47,6 +48,15 @@ export default function SignalsView({hidden}) {
     try {await request(`signal-runs/${id}/retry`, {method: 'POST'}); setNotice('Retry queued. The detection worker will process it.'); setRefresh(x => x + 1);}
     catch(e) {setError(e.message);} finally {setBusy(false);}
   }
+  async function backfill(event) {
+    event.preventDefault(); setBusy(true); setError(''); setNotice('');
+    try {
+      const date = new Date(since);
+      if (!since || Number.isNaN(date.getTime()) || date > new Date()) throw new Error('Choose a valid start date in the past.');
+      const result = await request(`signals/${backfillSignal}/backfill`, {method: 'POST', body: JSON.stringify({since: date.toISOString()})});
+      setNotice(result.queued_runs ? `Queued ${result.queued_runs} runs for Signal version ${result.signal_version}. Keep the detection worker running and check Runs for progress.` : 'No new runs queued. No synced turns matched, or this Signal version already has runs for them.');
+    } catch(e) {setError(e.message);} finally {setBusy(false);}
+  }
   function edit(signal) {
     setEditing(signal.id); setDraft({name: signal.name, description: signal.description,
       instruction: signal.instruction, enabled: signal.enabled, output_schema: JSON.stringify(signal.output_schema, null, 2)});
@@ -61,7 +71,19 @@ export default function SignalsView({hidden}) {
     {error && <p className="error-message" role="alert">{error}</p>}
     {notice && <p role="status" className="results-notice">{notice}</p>}
     {loading && <p role="status">Loading…</p>}
-    {tab === 'definitions' ? <div className="signal-layout">
+    {tab === 'definitions' ? <>
+      <form className="signal-editor" onSubmit={backfill} aria-label="Backfill previous conversations">
+        <h2>Analyze previous conversations</h2>
+        <p className="signal-help">Backfill synced turns using one Signal’s latest saved version. Existing runs are skipped; earlier results are preserved. Analysis uses paid model calls.</p>
+        <label>Signal to backfill<select required value={backfillSignal} disabled={busy || loading} onChange={e => setBackfillSignal(e.target.value)}>
+          <option value="">Choose an enabled Signal</option>
+          {signals.filter(s => s.enabled).map(s => <option value={s.id} key={s.id}>{s.name} · Version {s.version}</option>)}
+        </select></label>
+        <label>Synced on or after (your local time)<input type="datetime-local" required value={since} onChange={e => setSince(e.target.value)} /></label>
+        <p className="signal-help">Keep the detection worker running. It will process the queued runs without stopping watch mode. Save any definition edits before requesting a backfill.</p>
+        <button className="secondary-button" disabled={busy || loading || !signals.some(s => s.enabled && s.id === backfillSignal)}>{busy ? 'Working…' : 'Queue backfill'}</button>
+      </form>
+      <div className="signal-layout">
       <section aria-label="Saved Signals"><button className="secondary-button" disabled={busy} onClick={() => {setEditing(null); setDraft(blank());}}>New Signal</button>
         {!loading && !error && !signals.length && <p>No Signals yet. Create one to define what to detect.</p>}
         {signals.map(s => <article className="signal-card" key={s.id}><h2>{s.name}</h2><p>{s.description || 'No description'}</p><p>{s.enabled ? 'Enabled' : 'Disabled'} · Version {s.version}</p><button className="secondary-button" disabled={busy} onClick={() => edit(s)}>Edit {s.name}</button></article>)}</section>
@@ -73,7 +95,7 @@ export default function SignalsView({hidden}) {
         <p className="signal-help">Use a JSON object schema for each event’s custom fields. Editing the instruction or schema creates a new version.</p>
         <label className="signal-checkbox"><input type="checkbox" checked={draft.enabled} onChange={e => field('enabled',e.target.checked)} />Enabled</label>
         <button className="secondary-button" disabled={busy}>{busy ? 'Saving…' : 'Save Signal'}</button>
-      </form></div> : <>
+      </form></div></> : <>
       <p className="signal-help">Showing up to 50 {tab} per page. Refresh to load worker updates.</p>
       {run && <p>Events for run {run} <button onClick={() => {setRun(''); setOffset(0);}}>Show all events</button></p>}
       {!loading && !error && !rows.length && <p className="empty-state">No {tab} here yet. Enabled Signals produce runs when the detection worker analyzes new conversations.</p>}

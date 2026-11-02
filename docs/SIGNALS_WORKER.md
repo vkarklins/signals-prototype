@@ -93,3 +93,8 @@ The dashboard now exposes Signals, Runs and Events under the Signals navigation
 tab. Its Retry analysis action queues the original failed run for this worker;
 keep `python -m detection.run watch` running to process queued retries. Refresh
 loads current status. This UI does not start the worker or apply migrations.
+
+Backfills are also available in Signals → Definitions → Analyze previous
+conversations. This queues only the selected enabled Signal and does not require
+stopping watch mode. The CLI backfill command still requires exclusive worker
+access and selects all enabled Signals.

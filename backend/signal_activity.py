@@ -1,5 +1,9 @@
 """Read analysis activity and queue retries; never invoke models in requests."""
+from datetime import datetime, timezone
 from uuid import UUID
+from pydantic import BaseModel, ConfigDict, field_validator
+from classifier.config import MODEL
+from detection.worker import enqueue
 from fastapi import APIRouter, HTTPException, Query, Response
 from backend.signals import database
 from backend.live import laminar_url
@@ -50,3 +54,31 @@ def queue_retry(run_id: UUID):
             raise HTTPException(409, 'Only failed runs can be retried.')
         conn.execute("UPDATE signal_runs SET status='pending', error=NULL, finished_at=NULL WHERE id=%s", (run_id,))
     return {'id': run_id, 'status': 'pending'}
+
+
+class BackfillRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    since: datetime
+
+    @field_validator('since')
+    @classmethod
+    def valid_since(cls, value):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError('since must include a timezone')
+        if value > datetime.now(timezone.utc):
+            raise ValueError('since cannot be in the future')
+        return value
+
+
+@router.post('/api/signals/{signal_id}/backfill', status_code=202)
+def queue_backfill(signal_id: UUID, body: BackfillRequest):
+    with database() as conn, conn.transaction():
+        # Serialize with definition edits so the returned version is the one queued.
+        signal = conn.execute('SELECT enabled FROM signals WHERE id=%s FOR UPDATE', (signal_id,)).fetchone()
+        if signal is None:
+            raise HTTPException(404, 'Signal not found.')
+        if not signal['enabled']:
+            raise HTTPException(409, 'Enable and save this Signal before requesting a backfill.')
+        version = conn.execute('SELECT max(version) AS version FROM signal_versions WHERE signal_id=%s', (signal_id,)).fetchone()['version']
+        queued = enqueue(conn, body.since, MODEL, signal_id=signal_id)
+    return {'signal_id': signal_id, 'signal_version': version, 'queued_runs': queued, 'since': body.since}
