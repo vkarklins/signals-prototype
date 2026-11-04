@@ -176,7 +176,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
             placeholder="Name your tripwire" maxLength={255} error={errors.name} data-autofocus />
           {!editing && <Stack gap="xs">
             <Label help="Prefill the form with a preset or start blank.">Template</Label>
-            <SimpleGrid cols={{ base: 2, xs: 4 }} spacing="xs" role="group" aria-label="Template">
+            <SimpleGrid cols={{ base: 2, xs: 4 }} spacing="xs" role="group" aria-label="Template" className={classes.templateGrid}>
               {[...tripwireTemplates, blank].map((template) => <TemplateButton key={template.id} template={template}
                 selected={templateId === template.id} onSelect={() => applyTemplate(template)} />)}
             </SimpleGrid>

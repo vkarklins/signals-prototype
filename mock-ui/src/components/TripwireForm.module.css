@@ -9,7 +9,10 @@
   height: var(--mantine-font-size-lg);
   flex-shrink: 0;
 }
+.templateGrid { grid-auto-rows: 1fr; }
 .template {
+  display: grid;
+  grid-template-areas: 'content';
   min-width: 0;
   min-height: calc(var(--mantine-spacing-xl) * 3);
   padding: var(--mantine-spacing-xs);
@@ -27,6 +30,7 @@
 .template:hover { background: var(--mantine-color-dark-5); }
 .template:focus-visible { outline: 2px solid var(--mantine-primary-color-filled); outline-offset: var(--mantine-spacing-xs); }
 .templateFace, .templateDetail {
+  grid-area: content;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -34,9 +38,10 @@
   gap: var(--mantine-spacing-xs);
 }
 .templateFace { color: var(--mantine-color-dimmed); }
-.templateDetail { display: none; }
-.template:hover .templateFace, .template:focus .templateFace { display: none; }
-.template:hover .templateDetail, .template:focus .templateDetail { display: flex; }
+.templateDetail { visibility: hidden; }
+/* Both faces occupy the same grid cell, reserving space for the longer one. */
+.template:hover .templateFace, .template:focus .templateFace { visibility: hidden; }
+.template:hover .templateDetail, .template:focus .templateDetail { visibility: visible; }
 .schemaRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr) auto;
