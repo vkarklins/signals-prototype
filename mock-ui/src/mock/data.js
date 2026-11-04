@@ -269,7 +269,7 @@ export const tripwires = [
   },
   {
     id: 'task-evaluator', name: 'Task Evaluator', kind: 'preset', status: 'active', createdAt: '2026-10-21T10:00:00',
-    ...fromTemplate('task'), trigger: 'trace', spanName: '', filters: [], sampling: 100,
+    ...fromTemplate('task'), trigger: 'trace', spanName: '', filters: [], sampling: 20, // sampled to keep its cost down
     alerts: { newCluster: false, newCriticalEvent: false, skipSimilar: true, slack: false },
   },
   {
@@ -509,6 +509,8 @@ tripwires.forEach((t) => {
   let backfillCount = 0;
   traces.forEach((trace, ti) => {
     if (trace.time < backfillFrom) return;
+    // Sampling: the signal reads only `sampling`% of matching traces (picked by trace id, so it's stable).
+    if (t.sampling < 100 && parseInt(trace.id.slice(0, 4), 16) % 100 >= t.sampling) return;
     const isBackfill = trace.time < t.createdAt;
     const time = isBackfill ? addSeconds(t.createdAt, 30 + 4 * (backfillCount += 1)) : addSeconds(trace.time, 15 + Math.floor(rand() * 20));
     const runId = hex(32);
