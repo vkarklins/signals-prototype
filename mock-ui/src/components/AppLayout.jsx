@@ -6,7 +6,7 @@ import { homeUrl, tripwireListUrl, notificationsUrl } from './links';
 
 const NAV = [
   { to: homeUrl(), label: 'Home', end: true },
-  { to: tripwireListUrl(), label: 'Tripwires' },
+  { to: tripwireListUrl(), label: 'Signals' },
   { to: notificationsUrl(), label: 'Notifications' },
 ];
 

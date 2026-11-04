@@ -39,7 +39,7 @@ export default function StyleSample() {
 
       <Section title="Buttons" note="Main action: filled. Secondary: light. Tertiary: subtle gray.">
         <Group>
-          <Button>New tripwire</Button>
+          <Button>New signal</Button>
           <Button variant="light">Run on past traces</Button>
           <Button variant="subtle" color="gray">Cancel</Button>
         </Group>
@@ -54,7 +54,7 @@ export default function StyleSample() {
         </Group>
       </Section>
 
-      <Section title="Tripwire cards" note="Card + ActivitySparkline (Home).">
+      <Section title="Signal cards" note="Card + ActivitySparkline (Home).">
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
           {rows.filter((t) => ['friction-detector', 'failure-detector', 'made-up-park-facts'].includes(t.id)).map((t) => (
             <Card key={t.id} withBorder padding="lg">
@@ -65,7 +65,7 @@ export default function StyleSample() {
               <Group justify="space-between" align="flex-end">
                 <div>
                   <Text size="xl" fw={700}>{t.events}</Text>
-                  <Text size="xs" c="dimmed">tripwire events, last 7 days</Text>
+                  <Text size="xs" c="dimmed">events, last 7 days</Text>
                 </div>
                 <ActivitySparkline data={t.activity} w={110} h={40} />
               </Group>
@@ -74,7 +74,7 @@ export default function StyleSample() {
         </SimpleGrid>
       </Section>
 
-      <Section title="Tripwire table" note="Table (Tripwire list), Laminar's columns.">
+      <Section title="Signal table" note="Table (Signals list), Laminar's columns.">
         <Table.ScrollContainer minWidth={760}>
           <Table highlightOnHover verticalSpacing="sm">
             <Table.Thead>
@@ -101,11 +101,11 @@ export default function StyleSample() {
         </Table.ScrollContainer>
       </Section>
 
-      <Section title="Events over time" note="EventsOverTimeChart (Tripwire detail). Friction Detector.">
+      <Section title="Events over time" note="EventsOverTimeChart (Signal detail). Friction Detector.">
         <EventsOverTimeChart data={eventsPerDay(friction)} />
       </Section>
 
-      <Section title="Cluster tree" note="Paper rows (Tripwire detail). Friction Detector.">
+      <Section title="Cluster tree" note="Paper rows (Signal detail). Friction Detector.">
         <Stack gap="xs" maw={760}>
           {topClusters(friction).map((top) => (
             <Paper key={top.id} withBorder p="sm">
@@ -129,7 +129,7 @@ export default function StyleSample() {
         </Stack>
       </Section>
 
-      <Section title="Events table" note="Table + SeverityBadge + LaminarLink (Tripwire detail).">
+      <Section title="Events table" note="Table + SeverityBadge + LaminarLink (Signal detail).">
         <Table.ScrollContainer minWidth={760}>
           <Table striped highlightOnHover verticalSpacing="sm">
             <Table.Thead>
@@ -154,11 +154,11 @@ export default function StyleSample() {
         </Table.ScrollContainer>
       </Section>
 
-      <Section title="Form fields" note="Inputs (New tripwire).">
+      <Section title="Form fields" note="Inputs (New signal).">
         <Card withBorder padding="lg" maw={640}>
           <Stack>
             <TextInput id="ss-name" label="Name" defaultValue="Made-up park facts" />
-            <Textarea id="ss-instruction" label="What should this tripwire look for?" autosize minRows={2}
+            <Textarea id="ss-instruction" label="What should this signal look for?" autosize minRows={2}
               defaultValue="Find replies that state park facts (trail lengths, hours, fees, amenities) that the tool outputs don't support." />
             <Group grow>
               <TextInput id="ss-filter" label="Only read traces where" defaultValue="metadata.app_version starts with v1.4" />
@@ -167,7 +167,7 @@ export default function StyleSample() {
             <Switch id="ss-backfill" label="Run on past traces (last 14 days)" defaultChecked />
             <Group justify="flex-end">
               <Button variant="subtle" color="gray">Cancel</Button>
-              <Button>Create tripwire</Button>
+              <Button>Create signal</Button>
             </Group>
           </Stack>
         </Card>

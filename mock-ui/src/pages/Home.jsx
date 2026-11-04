@@ -3,11 +3,11 @@ import Placeholder from '../components/Placeholder';
 export default function Home() {
   return (
     <Placeholder title="Home" shows={[
-      'Tripwires that are spiking',
+      'Signals that are spiking',
       'Newly formed clusters',
-      'Recent critical tripwire events',
+      'Recent critical signal events',
       'Unread notifications',
-      'Each item links to its tripwire or cluster',
+      'Each item links to its signal or cluster',
     ]} />
   );
 }

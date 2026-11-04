@@ -2,7 +2,7 @@ import Placeholder from '../components/Placeholder';
 
 export default function NewTripwire() {
   return (
-    <Placeholder title="New tripwire" shows={[
+    <Placeholder title="New signal" shows={[
       'Start from a preset or blank',
       'Name and plain-language instruction',
       'Payload fields (name + description each)',
