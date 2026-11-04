@@ -1,4 +1,6 @@
-import { Paper, Text, Group, Stack, ColorSwatch } from '@mantine/core';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Anchor, Box, Paper, Text, Group, Stack, ColorSwatch, Tooltip, UnstyledButton } from '@mantine/core';
 import { AreaChart, BarChart, LineChart, Sparkline } from '@mantine/charts';
 import { formatTime } from './format';
 
@@ -70,6 +72,46 @@ export function TimeLineChart({ data, series, minutes, h = 180 }) {
       xAxisProps={{ interval: 0, tickLine: false, tickFormatter: (v) => labelOf[v] ?? '', tick: { fontSize: 12, fill: 'var(--mantine-color-dimmed)' } }}
       yAxisProps={{ allowDecimals: false, tick: { fontSize: 12, fill: 'var(--mantine-color-dimmed)' } }}
       tooltipProps={{ content: ({ label, payload }) => <BucketTooltip label={label} payload={payload} series={series} /> }} />
+  );
+}
+
+// TimeLineChart plus a legend whose items show or hide their line. The y-axis rescales to the lines still shown,
+// so hiding the busiest series makes the small ones readable. Hidden lines reset on reload.
+//   linkFor (optional): series -> a link (e.g. to that signal), shown as a small ↗ after the name.
+//   A series' `description` (optional) shows as a tooltip on its legend item.
+export function ToggleLineChart({ data, series, minutes, h = 180, linkFor }) {
+  const [hidden, setHidden] = useState([]);
+  const visible = series.filter((s) => !hidden.includes(s.name));
+  const toggle = (name) => setHidden((cur) => (cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name]));
+  return (
+    <>
+      {visible.length > 0
+        ? <TimeLineChart data={data} series={visible} minutes={minutes} h={h} />
+        : (
+          <Box h={h} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Text size="sm" c="dimmed" ta="center">All lines hidden. Click a legend item to show it.</Text>
+          </Box>
+        )}
+      <Group gap="sm" mt="xs">
+        {series.map((s) => {
+          const off = hidden.includes(s.name);
+          const to = linkFor?.(s);
+          return (
+            <Group key={s.name} gap={4} wrap="nowrap">
+              <Tooltip label={s.description} disabled={!s.description} multiline w={240} withArrow>
+                <UnstyledButton onClick={() => toggle(s.name)} aria-pressed={!off} aria-label={`${off ? 'Show' : 'Hide'} ${s.label}`}>
+                  <Group gap={6} wrap="nowrap" style={{ opacity: off ? 0.45 : 1 }}>
+                    <ColorSwatch size={10} radius="xs" color={`var(--mantine-color-${s.color.replace('.', '-')})`} withShadow={false} />
+                    <Text size="xs" td={off ? 'line-through' : undefined}>{s.label}</Text>
+                  </Group>
+                </UnstyledButton>
+              </Tooltip>
+              {to && <Anchor component={Link} to={to} size="xs" aria-label={`Open ${s.label}`}>↗</Anchor>}
+            </Group>
+          );
+        })}
+      </Group>
+    </>
   );
 }
 
