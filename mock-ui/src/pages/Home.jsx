@@ -1,18 +1,18 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { Anchor, Box, Button, Group, Paper, Select, SimpleGrid, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { useStoryData } from '../components/StoryClock';
-import { TimeLineChart } from '../components/Charts';
+import { ToggleLineChart } from '../components/Charts';
 import TimeRangePicker from '../components/TimeRangePicker';
 import { formatCost, plural } from '../components/format';
 import { tripwireUrl, tripwireListUrl } from '../components/links';
 import { rangeFromParams, makeBuckets, bucketIndex } from '../components/timeRange';
-import { clusterColor, cssColor, UNCLUSTERED_COLOR, RUN_COLORS } from '../theme';
+import { clusterColor, UNCLUSTERED_COLOR, RUN_COLORS } from '../theme';
 
 // Home: a fixed dashboard for signals, built from Laminar's dashboard card types
 // (ranked lists and charts over time). Not customizable.
 // Address: /?pastHours=168&granularity=hour|day
 
-const DEFAULT_HOURS = 168; // 7 days
+const DEFAULT_HOURS = 24; // past 24 hours
 const TOP = 5;
 
 export default function Home() {
@@ -35,20 +35,28 @@ export default function Home() {
     .map((x) => ({ ...x, value: value(x) })).filter((x) => x.value > 0)
     .sort((a, b) => b.value - a.value || label(a).localeCompare(label(b)));
 
-  const bySignal = top(data.tripwires, (t) => events.filter((e) => e.tripwireId === t.id).length, (t) => t.name);
-  // Problem clusters: ranked by critical + warning events only, so category clusters (all info)
-  // from signals that fire on every trace don't fill the card.
+  // "Problem" = critical or warning. Counting only these keeps signals that produce an event for every
+  // trace (Intent Classifier, Task Evaluator's successes) from turning the event cards into a traffic count.
   const isProblem = (e) => e.severity === 'critical' || e.severity === 'warning';
-  const byCluster = top(data.clusters.filter((c) => c.parentId), (c) => events.filter((e) => e.clusterId === c.id && isProblem(e)).length, (c) => c.name);
+  const problems = events.filter(isProblem);
+  const byProblems = top(data.tripwires, (t) => problems.filter((e) => e.tripwireId === t.id).length, (t) => t.name);
+  const byCluster = top(data.clusters.filter((c) => c.parentId), (c) => problems.filter((e) => e.clusterId === c.id).length, (c) => c.name);
   const byCost = top(data.tripwires, (t) => runs.filter((r) => r.tripwireId === t.id).reduce((sum, r) => sum + r.cost, 0), (t) => t.name);
-  const critical = events.filter((e) => e.severity === 'critical');
-  const byCritical = top(data.tripwires, (t) => critical.filter((e) => e.tripwireId === t.id).length, (t) => t.name);
   const totalCost = runs.reduce((sum, r) => sum + r.cost, 0);
+
+  // Intent breakdown: only when a signal created from the Intent template exists (survives renames).
+  const intentSignal = data.tripwires.find((t) => t.templateId === 'intent');
+  const intentEvents = intentSignal ? events.filter((e) => e.tripwireId === intentSignal.id) : [];
+  const byIntent = intentSignal
+    ? top(data.leafClusters(intentSignal.id), (c) => intentEvents.filter((e) => e.clusterId === c.id).length, (c) => c.name)
+    : [];
+  const pct = (n) => `${Math.round((n / intentEvents.length) * 100)}%`;
 
   // Chart rows: one per bucket; top 5 signals get their own line, the rest are summed into "Other".
   const perSignalSeries = (ranked, items) => {
     const shown = ranked.slice(0, TOP);
-    const series = shown.map((t, i) => ({ name: t.id, label: t.name, color: clusterColor(i) }));
+    // A signal keeps one color on every card (by its place in the signal list, not its rank in this chart).
+    const series = shown.map((t) => ({ name: t.id, label: t.name, color: clusterColor(data.tripwires.findIndex((x) => x.id === t.id)) }));
     const hasOther = ranked.length > TOP;
     if (hasOther) series.push({ name: 'other', label: 'Other', color: UNCLUSTERED_COLOR });
     const rows = buckets.map((b) => Object.fromEntries([['bucket', b.start], ...series.map((s) => [s.name, 0])]));
@@ -60,12 +68,14 @@ export default function Home() {
     }
     return { series, rows, shown };
   };
-  const eventsChart = perSignalSeries(bySignal, events);
-  const criticalChart = perSignalSeries(byCritical, critical);
+  const problemsChart = perSignalSeries(byProblems, problems);
+  // Legend link for a signal line ("Other" has no page).
+  const signalLink = (series) => (series.name === 'other' ? null : tripwireUrl(series.name, { range }));
   const runSeries = [
-    { name: 'event', label: 'Event', color: RUN_COLORS.event },
-    { name: 'noEvent', label: 'No event', color: RUN_COLORS.noEvent },
-    { name: 'failed', label: 'Failed', color: RUN_COLORS.failed },
+    { name: 'event', label: 'Found an event', color: RUN_COLORS.event },
+    { name: 'noEvent', label: 'Found nothing', color: RUN_COLORS.noEvent },
+    { name: 'failed', label: 'Failed', color: RUN_COLORS.failed,
+      description: "Couldn't finish: model error, unusable output, or the trace couldn't be read." },
   ];
   const runRows = buckets.map((b) => ({ bucket: b.start, event: 0, noEvent: 0, failed: 0 }));
   for (const r of runs) {
@@ -84,9 +94,9 @@ export default function Home() {
       </Group>
 
       <SimpleGrid cols={{ base: 1, md: 3 }}>
-        <Card title="Events by signal" total={events.length}
+        <Card title="Problem events by signal" note="Critical and warning events" total={problems.length}
           footer={<Anchor component={Link} to={tripwireListUrl()} size="sm">View all signals →</Anchor>}>
-          <RankedList rows={bySignal.slice(0, TOP).map((t) => ({ key: t.id, label: t.name, value: t.value, to: tripwireUrl(t.id, { range }) }))} />
+          <RankedList rows={byProblems.slice(0, TOP).map((t) => ({ key: t.id, label: t.name, value: t.value, to: tripwireUrl(t.id, { range }) }))} />
         </Card>
         <Card title="Top problem clusters" note="Ranked by critical and warning events" total={byCluster.length} totalLabel={plural(byCluster.length, 'cluster')}>
           <RankedList rows={byCluster.slice(0, TOP).map((c) => ({
@@ -99,45 +109,35 @@ export default function Home() {
       </SimpleGrid>
 
       <SimpleGrid cols={{ base: 1, md: 3 }}>
-        <Card title="Events over time" legend={eventsChart.series} linkFor={(s) => (s.name === 'other' ? null : tripwireUrl(s.name, { range }))}>
-          <TimeLineChart data={eventsChart.rows} series={eventsChart.series} minutes={minutes} />
+        <Card title="Problem events over time" note="Critical and warning events">
+          {problems.length === 0
+            ? <Empty text="No problem events in this time range." />
+            : <ToggleLineChart data={problemsChart.rows} series={problemsChart.series} minutes={minutes} linkFor={signalLink} />}
         </Card>
-        <Card title="Critical events" total={critical.length} legend={criticalChart.series}
-          linkFor={(s) => (s.name === 'other' ? null : tripwireUrl(s.name, { range }))}>
-          {critical.length === 0
-            ? <Empty text="No critical events in this time range." />
-            : <TimeLineChart data={criticalChart.rows} series={criticalChart.series} minutes={minutes} />}
-        </Card>
-        <Card title="Runs by outcome" total={runs.length} totalLabel={plural(runs.length, 'run')} legend={runSeries}>
-          <TimeLineChart data={runRows} series={runSeries} minutes={minutes} />
+        {intentSignal && (
+          <Card title="What visitors asked for" note={`From ${intentSignal.name}`} total={intentEvents.length} totalLabel={plural(intentEvents.length, 'conversation turn')}>
+            <RankedList rows={byIntent.slice(0, TOP).map((c) => ({
+              key: c.id, label: c.name, value: c.value, display: `${c.value} · ${pct(c.value)}`,
+              to: tripwireUrl(intentSignal.id, { clusterId: c.id, range }),
+            }))} />
+          </Card>
+        )}
+        <Card title="Signal runs (all signals)" note="Each run is one signal reading one trace" total={runs.length} totalLabel={plural(runs.length, 'run')}>
+          <ToggleLineChart data={runRows} series={runSeries} minutes={minutes} />
         </Card>
       </SimpleGrid>
     </Stack>
   );
 }
 
-// A dashboard card: title, big number, body, optional legend (links to signals) and footer.
-function Card({ title, note, total, totalLabel, legend, linkFor, footer, children }) {
+// A dashboard card: title, optional note, big number, body, optional footer.
+function Card({ title, note, total, totalLabel, footer, children }) {
   return (
     <Paper withBorder p="md" style={{ minWidth: 0 }}>
       <Text fw={600}>{title}</Text>
       {note && <Text size="xs" c="dimmed">{note}</Text>}
       {(total !== undefined || totalLabel) && <Title order={2} mb="xs">{totalLabel ?? total.toLocaleString()}</Title>}
       {children}
-      {legend && legend.length > 0 && (
-        <Group gap="sm" mt="xs">
-          {legend.map((s) => {
-            const to = linkFor?.(s);
-            const item = (
-              <Group gap={6} wrap="nowrap">
-                <Box w="xs" h="xs" style={{ borderRadius: 'var(--mantine-radius-xs)', background: cssColor(s.color) }} />
-                <Text size="xs" c={to ? undefined : 'dimmed'}>{s.label}</Text>
-              </Group>
-            );
-            return to ? <UnstyledButton key={s.name} component={Link} to={to}>{item}</UnstyledButton> : <Box key={s.name}>{item}</Box>;
-          })}
-        </Group>
-      )}
       {footer && <Box mt="sm">{footer}</Box>}
     </Paper>
   );
