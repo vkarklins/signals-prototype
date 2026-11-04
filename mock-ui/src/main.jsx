@@ -6,13 +6,16 @@ import { BrowserRouter } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
 import { theme } from './theme';
 import App from './App';
+import { StoryClockProvider } from './components/StoryClock';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="dark" forceColorScheme="dark">
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <StoryClockProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </StoryClockProvider>
     </MantineProvider>
   </React.StrictMode>
 );

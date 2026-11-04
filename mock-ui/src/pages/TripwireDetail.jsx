@@ -1,10 +1,10 @@
 import { useParams } from 'react-router-dom';
 import Placeholder from '../components/Placeholder';
-import { getTripwire } from '../mock/data';
+import { useStoryData } from '../components/StoryClock';
 
 export default function TripwireDetail() {
   const { id } = useParams();
-  const tripwire = getTripwire(id);
+  const tripwire = useStoryData().getTripwire(id);
   return (
     <Placeholder title={tripwire ? tripwire.name : 'Tripwire'} shows={[
       'Tripwire events over time',

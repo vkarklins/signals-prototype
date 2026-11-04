@@ -6,7 +6,7 @@ export function ActivitySparkline({ data, w = 100, h = 28 }) {
   return <Sparkline w={w} h={h} data={data} curveType="monotone" color="teal" fillOpacity={0.15} />;
 }
 
-// Tripwire events per day. `data` comes from eventsPerDay() in mock/data.js.
+// Tripwire events per day. `data` comes from useStoryData().eventsPerDay().
 export function EventsOverTimeChart({ data, h = 220 }) {
   return (
     <Paper withBorder p="md">

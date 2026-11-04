@@ -56,8 +56,18 @@ Every screen reads one file, `mock-ui/src/mock/data.js`. Proposed story: the Oly
 
 Tripwires on the list: Failure Detector, Friction Detector, Intent Classifier, Task Evaluator (Laminar's presets), plus the custom "Made-up park facts". Intent Classifier and Task Evaluator produce an event for every trace they read, as in Laminar.
 
+## Story day and links
+
+- **Story day picker** (header): Day 1 (Oct 29, 6 pm), Day 3 (Oct 31, 6 pm), Day 6 (Nov 3, 6 pm), Today (Nov 4, 9:30 am).
+  Every screen shows only what had happened by then. A demo control, not a product feature. A notification is unread for 48 hours.
+- **Developer's path** the screens must support: notification → Tripwire detail with that cluster selected and the event
+  highlighted → "Open in Laminar".
+- **Tripwire detail URL:** `/tripwires/<id>?cluster=<clusterId>&event=<eventId>` (both optional). Build links with
+  `src/components/links.js`.
+
 ## Where things are in the code
 
-- Data and helpers: `src/mock/data.js` (`tripwireSummary`, `eventsFor`, `eventsPerDay`, `topClusters`, `subClusters`, `eventsInCluster`, `notifications`, `laminarTraceUrl`, ...).
-- Shared components: `src/components/` (`AppLayout`, `PageHeader`, `Badges`, `Charts`, `LaminarLink`, `format`).
+- Data: `src/mock/data.js`. Pages read it with `useStoryData()` (`src/components/StoryClock.jsx`): `tripwireSummary`, `eventsFor`, `eventsPerDay`, `topClusters`, `subClusters`, `eventsInCluster`, `notifications`, `unreadCount`, ...
+- Links: `src/components/links.js`.
+- Shared components: `src/components/` (`AppLayout`, `PageHeader`, `Badges`, `Charts`, `LaminarLink`, `StoryClock`, `format`).
 - Reference page with every component: `/style` (`src/pages/StyleSample.jsx`).

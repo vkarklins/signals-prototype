@@ -12,11 +12,27 @@
 //   Background: sold-out campsites and large-party bookings, so lists don't look staged.
 //
 // Events, runs, cluster counts and notifications are all generated from the tables below,
-// so they can't disagree. Use the helper functions at the bottom instead of re-counting.
+// so they can't disagree.
+//
+// Pages don't import from this file directly. They call useStoryData() (src/components/StoryClock.jsx),
+// which returns makeStoryData(asOf): the same helpers, showing only what had happened by the
+// story day picked in the header. A page built that way follows the day picker automatically.
 
 export const DAYS = ['2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04'];
 export const DAY_LABELS = ['Oct 29', 'Oct 30', 'Oct 31', 'Nov 1', 'Nov 2', 'Nov 3', 'Nov 4'];
 export const NOW = '2026-11-04T09:30:00';
+
+// The days the header's day picker offers. asOf = the moment the developer looks at Tripwire.
+export const STORY_DAYS = [
+  { id: 'day1', label: 'Day 1', asOf: '2026-10-29T18:00:00', note: 'Olympic trail lookup starts failing' },
+  { id: 'day3', label: 'Day 3', asOf: '2026-10-31T18:00:00', note: 'Fix 1 shipped (v1.4.1); the assistant starts inventing trail lengths' },
+  { id: 'day6', label: 'Day 6', asOf: '2026-11-03T18:00:00', note: 'Fix 2 shipped (v1.4.2); both problems quiet' },
+  { id: 'today', label: 'Today', asOf: NOW, note: 'The whole week' },
+];
+export const DEFAULT_STORY_DAY = 'today';
+
+// A notification counts as unread for 48 hours after it arrives (relative to asOf).
+const UNREAD_FOR_HOURS = 48;
 
 // App version in production on each day (from trace metadata).
 const APP_VERSION_BY_DAY = ['v1.4.0', 'v1.4.0', 'v1.4.1', 'v1.4.1', 'v1.4.1', 'v1.4.2', 'v1.4.2'];
@@ -188,73 +204,66 @@ const EVERY_TRACE = {
 };
 
 // ---------------------------------------------------------------- generation (deterministic)
+// Everything below is computed once for the whole week. makeStoryData(asOf) then filters it.
 
 let seed = 42;
 const rand = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
 const hex = (n) => Array.from({ length: n }, () => Math.floor(rand() * 16).toString(16)).join('');
-const timeOn = (dayIndex, i, n) => {
-  // Spread events through the day (8am to 8pm), in order. Today (the last day) stops before NOW (9:30am).
-  const span = dayIndex === DAYS.length - 1 ? 80 : 12 * 60;
-  const minutes = 8 * 60 + Math.floor(((i + 0.5) / n) * span + rand() * Math.min(20, span / n / 2));
-  const hh = String(Math.min(19, Math.floor(minutes / 60))).padStart(2, '0');
-  const mm = String(minutes % 60).padStart(2, '0');
-  return `${DAYS[dayIndex]}T${hh}:${mm}:00`;
-};
+const pad = (n) => String(n).padStart(2, '0');
 
-function startDayIndex(tripwire) {
-  const i = DAYS.indexOf(tripwire.createdAt);
-  return i === -1 ? 0 : i;
-}
+// Traces: one per assistant turn, spread through each day (8am to 8pm; today stops before NOW).
+export const traces = [];
+TRACES_PER_DAY.forEach((count, d) => {
+  const span = d === DAYS.length - 1 ? 80 : 12 * 60;
+  for (let i = 0; i < count; i += 1) {
+    const minutes = 8 * 60 + Math.floor(((i + 0.5) / count) * span);
+    traces.push({
+      id: hex(32), conversationId: `convo-${hex(8)}`, dayIndex: d,
+      time: `${DAYS[d]}T${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}:00`,
+      appVersion: APP_VERSION_BY_DAY[d],
+    });
+  }
+});
+const tracesOnDay = (d) => traces.filter((t) => t.dayIndex === d);
 
-export const tripwireEvents = [];
+const ALL_EVENTS = [];
 for (const [clusterId, r] of Object.entries(RECIPES)) {
   const cluster = clusters.find((c) => c.id === clusterId);
   let k = 0;
   r.perDay.forEach((count, d) => {
+    const dayTraces = tracesOnDay(d);
     for (let i = 0; i < count; i += 1, k += 1) {
+      // Spread this cluster's events over the day's traces.
+      const trace = dayTraces[Math.floor(((i + 0.5) / count) * dayTraces.length)];
       const [visitor, reply] = r.examples[k % r.examples.length];
-      tripwireEvents.push({
+      ALL_EVENTS.push({
         id: `ev-${clusterId}-${k}`, tripwireId: cluster.tripwireId, clusterId,
-        traceId: hex(32), conversationId: `convo-${hex(8)}`,
-        time: timeOn(d, i, count), appVersion: APP_VERSION_BY_DAY[d],
-        severity: r.severity[k % r.severity.length], payload: r.payload,
-        excerpt: { visitor, reply },
+        traceId: trace.id, conversationId: trace.conversationId, time: trace.time, appVersion: trace.appVersion,
+        severity: r.severity[k % r.severity.length], payload: r.payload, excerpt: { visitor, reply },
       });
     }
   });
 }
 for (const [tripwireId, spec] of Object.entries(EVERY_TRACE)) {
-  TRACES_PER_DAY.forEach((count, d) => {
-    for (let i = 0; i < count; i += 1) {
-      let x = rand(); let clusterId = spec.split[spec.split.length - 1][0];
-      for (const [c, share] of spec.split) { if (x < share) { clusterId = c; break; } x -= share; }
-      tripwireEvents.push({
-        id: `ev-${tripwireId}-${d}-${i}`, tripwireId, clusterId,
-        traceId: hex(32), conversationId: `convo-${hex(8)}`,
-        time: timeOn(d, i, count), appVersion: APP_VERSION_BY_DAY[d],
-        severity: clusterId.startsWith('te-not') ? 'warning' : 'info',
-        payload: spec.payload(clusterId),
-        excerpt: { visitor: '(see trace)', reply: '(see trace)' },
-      });
-    }
+  traces.forEach((trace, i) => {
+    let x = rand(); let clusterId = spec.split[spec.split.length - 1][0];
+    for (const [c, share] of spec.split) { if (x < share) { clusterId = c; break; } x -= share; }
+    ALL_EVENTS.push({
+      id: `ev-${tripwireId}-${i}`, tripwireId, clusterId,
+      traceId: trace.id, conversationId: trace.conversationId, time: trace.time, appVersion: trace.appVersion,
+      severity: clusterId.startsWith('te-not') ? 'warning' : 'info',
+      payload: spec.payload(clusterId), excerpt: { visitor: '(see trace)', reply: '(see trace)' },
+    });
   });
 }
-tripwireEvents.sort((a, b) => (a.time < b.time ? 1 : -1)); // newest first
-
-// Runs: traces each tripwire read per day, and the events it produced.
-export const runs = tripwires.flatMap((t) =>
-  DAYS.map((day, d) => ({
-    tripwireId: t.id, day,
-    tracesRead: d < startDayIndex(t) ? 0 : TRACES_PER_DAY[d],
-    events: tripwireEvents.filter((e) => e.tripwireId === t.id && e.time.startsWith(day)).length,
-  })));
+ALL_EVENTS.sort((a, b) => (a.time < b.time ? 1 : -1)); // newest first
 
 // Notifications, following the alert rules (like Laminar):
 //   new cluster: when a leaf cluster gets its first event;
 //   new critical event: the first critical event in each cluster ("skip similar events").
-export const notifications = (() => {
+const ALL_NOTIFICATIONS = (() => {
   const out = [];
-  const byTime = [...tripwireEvents].sort((a, b) => (a.time < b.time ? -1 : 1));
+  const byTime = [...ALL_EVENTS].sort((a, b) => (a.time < b.time ? -1 : 1));
   const seenCluster = new Set(); const seenCritical = new Set();
   for (const e of byTime) {
     const t = tripwires.find((x) => x.id === e.tripwireId);
@@ -263,55 +272,85 @@ export const notifications = (() => {
       seenCluster.add(c.id);
       if (t.alerts.newCluster) {
         out.push({ id: `n-cluster-${c.id}`, time: e.time, type: 'new-cluster', tripwireId: t.id, clusterId: c.id,
-          text: `New cluster in ${t.name}: ${c.name}` });
+          eventId: e.id, text: `New cluster in ${t.name}: ${c.name}` });
       }
     }
     if (e.severity === 'critical' && !seenCritical.has(c.id)) {
       seenCritical.add(c.id);
       if (t.alerts.newCriticalEvent) {
-        out.push({ id: `n-critical-${e.id}`, time: e.time, type: 'critical-event', tripwireId: t.id, clusterId: c.id, eventId: e.id,
-          text: `Critical event in ${t.name}: ${c.name}` });
+        out.push({ id: `n-critical-${e.id}`, time: e.time, type: 'critical-event', tripwireId: t.id, clusterId: c.id,
+          eventId: e.id, text: `Critical event in ${t.name}: ${c.name}` });
       }
     }
   }
-  out.sort((a, b) => (a.time < b.time ? 1 : -1));
-  // Everything before fix 1 has been read; the story's later alerts are still unread.
-  return out.map((n) => ({ ...n, read: n.time < '2026-10-31' }));
+  return out.sort((a, b) => (a.time < b.time ? 1 : -1)); // newest first
 })();
 
-// ---------------------------------------------------------------- helpers for pages
+// ---------------------------------------------------------------- the story at a moment
 
-export const getTripwire = (id) => tripwires.find((t) => t.id === id);
-export const getCluster = (id) => clusters.find((c) => c.id === id);
-export const eventsFor = (tripwireId) => tripwireEvents.filter((e) => e.tripwireId === tripwireId);
-export const eventsInCluster = (clusterId) => {
-  const leafIds = clusters.filter((c) => c.parentId === clusterId).map((c) => c.id);
-  const ids = leafIds.length ? leafIds : [clusterId];
-  return tripwireEvents.filter((e) => ids.includes(e.clusterId));
-};
-export const topClusters = (tripwireId) => clusters.filter((c) => c.tripwireId === tripwireId && !c.parentId);
-export const subClusters = (clusterId) => clusters.filter((c) => c.parentId === clusterId);
-export const leafClusters = (tripwireId) => clusters.filter((c) => c.tripwireId === tripwireId && c.parentId);
+const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 3_600_000;
 
-// Events per day for a tripwire (or one cluster): [{ day: 'Oct 29', events: 11 }, ...]
-export const eventsPerDay = (tripwireId, clusterId) => DAYS.map((day, d) => ({
-  day: DAY_LABELS[d],
-  events: (clusterId ? eventsInCluster(clusterId) : eventsFor(tripwireId)).filter((e) => e.time.startsWith(day)).length,
-}));
+// Everything a page needs, as it looked at `asOf` (an ISO time). Pages get this from useStoryData().
+export function makeStoryData(asOf = NOW) {
+  const asOfDate = asOf.slice(0, 10);
+  const lastDayIndex = DAYS.filter((d) => d <= asOfDate).length - 1;
 
-// One row per tripwire, for the Tripwire list (same columns as Laminar's Signals list).
-export const tripwireSummary = (tripwireId) => {
-  const t = getTripwire(tripwireId);
-  const events = eventsFor(tripwireId);
-  return {
-    ...t,
-    events: events.length,
-    clusters: leafClusters(tripwireId).length,
-    runs: runs.filter((r) => r.tripwireId === tripwireId).reduce((sum, r) => sum + r.tracesRead, 0),
-    activity: eventsPerDay(tripwireId).map((d) => d.events),
-    lastEventAt: events[0]?.time ?? null,
+  const events = ALL_EVENTS.filter((e) => e.time <= asOf);
+  const liveTripwires = tripwires.filter((t) => t.createdAt <= asOfDate);
+  const liveLeafIds = new Set(events.map((e) => e.clusterId));
+  const liveClusters = clusters.filter((c) => (c.parentId
+    ? liveLeafIds.has(c.id)
+    : clusters.some((child) => child.parentId === c.id && liveLeafIds.has(child.id))));
+  const notifications = ALL_NOTIFICATIONS.filter((n) => n.time <= asOf)
+    .map((n) => ({ ...n, read: hoursBetween(n.time, asOf) > UNREAD_FOR_HOURS }));
+
+  const getTripwire = (id) => liveTripwires.find((t) => t.id === id);
+  const getCluster = (id) => liveClusters.find((c) => c.id === id);
+  const getEvent = (id) => events.find((e) => e.id === id);
+  const eventsFor = (tripwireId) => events.filter((e) => e.tripwireId === tripwireId);
+  const subClusters = (clusterId) => liveClusters.filter((c) => c.parentId === clusterId);
+  const eventsInCluster = (clusterId) => {
+    const leafIds = subClusters(clusterId).map((c) => c.id);
+    const ids = leafIds.length ? leafIds : [clusterId];
+    return events.filter((e) => ids.includes(e.clusterId));
   };
-};
+  const topClusters = (tripwireId) => liveClusters.filter((c) => c.tripwireId === tripwireId && !c.parentId);
+  const leafClusters = (tripwireId) => liveClusters.filter((c) => c.tripwireId === tripwireId && c.parentId);
+
+  // Events per day, always all 7 days so the x-axis doesn't jump; days after asOf are null (no line).
+  const eventsPerDay = (tripwireId, clusterId) => DAYS.map((day, d) => ({
+    day: DAY_LABELS[d],
+    events: d > lastDayIndex ? null
+      : (clusterId ? eventsInCluster(clusterId) : eventsFor(tripwireId)).filter((e) => e.time.startsWith(day)).length,
+  }));
+
+  // Traces the tripwire read (its runs): every trace since it was created, up to asOf.
+  const runsFor = (tripwireId) => {
+    const t = getTripwire(tripwireId);
+    return traces.filter((tr) => tr.time <= asOf && tr.time.slice(0, 10) >= t.createdAt).length;
+  };
+
+  // One row per tripwire, for the Tripwire list (same columns as Laminar's Signals list).
+  const tripwireSummary = (tripwireId) => {
+    const t = getTripwire(tripwireId);
+    const own = eventsFor(tripwireId);
+    return {
+      ...t,
+      events: own.length,
+      clusters: leafClusters(tripwireId).length,
+      runs: runsFor(tripwireId),
+      activity: eventsPerDay(tripwireId).filter((d) => d.events !== null).map((d) => d.events),
+      lastEventAt: own[0]?.time ?? null,
+    };
+  };
+
+  return {
+    asOf, days: DAY_LABELS,
+    tripwires: liveTripwires, clusters: liveClusters, tripwireEvents: events, notifications,
+    getTripwire, getCluster, getEvent, eventsFor, eventsInCluster, topClusters, subClusters, leafClusters,
+    eventsPerDay, runsFor, tripwireSummary,
+    unreadCount: () => notifications.filter((n) => !n.read).length,
+  };
+}
 
 export const laminarTraceUrl = (traceId) => `${LAMINAR_PROJECT_URL}/traces/${traceId}`;
-export const unreadCount = () => notifications.filter((n) => !n.read).length;

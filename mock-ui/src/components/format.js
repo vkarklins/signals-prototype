@@ -16,3 +16,8 @@ export function formatDay(isoDate) {
   const [, m, d] = isoDate.split('-').map(Number);
   return `${MONTHS[m - 1]} ${d}`;
 }
+
+// plural(1, 'event') -> '1 event'; plural(3, 'event') -> '3 events'
+export function plural(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
