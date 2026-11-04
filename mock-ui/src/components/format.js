@@ -34,9 +34,11 @@ export function formatRelative(iso, now) {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-// 0.000948 -> '$0.000948'; 0.18 -> '$0.18'
+// Three significant digits, so costs line up: 0.000948 -> '$0.000948'; 0.22 -> '$0.220'; 12.345 -> '$12.35'
 export function formatCost(dollars) {
-  return `$${Number(dollars.toPrecision(3))}`;
+  if (dollars >= 1) return `$${dollars.toFixed(2)}`;
+  if (dollars === 0) return '$0';
+  return `$${dollars.toPrecision(3)}`;
 }
 
 // Shorten a long id for a table cell: '55e4f63847b211b7...' -> '55e4f638...'

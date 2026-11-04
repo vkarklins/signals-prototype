@@ -9,12 +9,12 @@ Read this before changing anything in `mock-ui/`. What each screen shows is in `
   `topClusters`, `subClusters`, `eventsInCluster`, `leafIdsOf`, `versions`, `tripwireTemplates`, `sampleTraces`, `notifications`, `unreadCount`, `asOf`, ...). It shows the data as of the story day picked in the header
   (Day 1 / Day 3 / Day 6 / Today), so every page follows the day picker. A tripwire, cluster or event that
   doesn't exist yet on that day is simply missing: handle "not found" and empty lists.
-- **Links between screens come from `src/components/links.js`** (`tripwireUrl(id, { clusterId, eventId })`,
+- **Links between screens come from `src/components/links.js`** (`tripwireUrl(id, { tab, clusterId, eventId, range })`; pass `range` so the signal page opens on the same time range,
   `notificationUrl(n)`, `tripwireListUrl()`, `laminarTraceUrl(traceId)`, ...). Never write a route by hand.
   Signal detail reads `?tab=`, `?cluster=`, `?event=` and the time range (`?pastHours=` or `?startDate=&endDate=`).
 - **Time ranges:** use `TimeRangePicker` (it keeps the range in the address) and `rangeFromParams()` /
   `bucketMinutesFor()` / `makeBuckets()` from `src/components/timeRange.js`. "Now" is `useStoryData().asOf`, never `Date.now()`.
-- **Charts over time:** `TimeBarChart` from `src/components/Charts.jsx`. Cluster colors: `clusterColor(i)` from `theme.js`
+- **Charts over time:** `TimeBarChart` (bars) and `TimeLineChart` (lines, for dashboard cards) from `src/components/Charts.jsx`. Cluster colors: `clusterColor(i)` from `theme.js`
   (events in no cluster use `UNCLUSTERED_COLOR`).
 - Read `SPEC.md` before building a page. Build only what it describes; ask instead of inventing features.
 - Use Mantine components and `src/theme.js`. No hard-coded colors, font sizes or spacing.

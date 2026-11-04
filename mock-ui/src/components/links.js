@@ -14,11 +14,14 @@ export const tripwireListUrl = () => '/signals';
 export const newTripwireUrl = () => '/signals/new';
 export const notificationsUrl = () => '/notifications';
 
-export function tripwireUrl(tripwireId, { tab, clusterId, eventId } = {}) {
+// `range` (optional): a range from rangeFromParams(), so the signal page opens on the same time range.
+export function tripwireUrl(tripwireId, { tab, clusterId, eventId, range } = {}) {
   const params = new URLSearchParams();
   if (tab && tab !== 'events') params.set('tab', tab);
   if (clusterId) params.set('cluster', clusterId);
   if (eventId) params.set('event', eventId);
+  if (range?.absolute) { params.set('startDate', range.start); params.set('endDate', range.end); }
+  else if (range) params.set('pastHours', String(range.hours));
   const query = params.toString();
   return `/signals/${tripwireId}${query ? `?${query}` : ''}`;
 }

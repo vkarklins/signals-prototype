@@ -1,5 +1,5 @@
 import { Paper, Text, Group, Stack, ColorSwatch } from '@mantine/core';
-import { AreaChart, BarChart, Sparkline } from '@mantine/charts';
+import { AreaChart, BarChart, LineChart, Sparkline } from '@mantine/charts';
 import { formatTime } from './format';
 
 // Small trend line for tables and cards. `data` is a list of numbers (one per day).
@@ -21,19 +21,20 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // Axis label for a bucket start, depending on bar size (like Laminar: "Thu 29", "12 PM", "Aug 09").
-function tickLabel(iso, minutes, i) {
+// compact (narrow charts): fewer labels: days only for hourly bars, every 14th day for daily bars.
+function tickLabel(iso, minutes, i, compact = false) {
   const [date, time] = iso.split('T');
   const [y, mo, d] = date.split('-').map(Number);
   const [hh, mm] = time.split(':').map(Number);
   const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
-  if (minutes >= 1440) return i % 7 === 0 ? `${MONTHS[mo - 1]} ${String(d).padStart(2, '0')}` : '';
+  if (minutes >= 1440) return i % (compact ? 14 : 7) === 0 ? `${MONTHS[mo - 1]} ${String(d).padStart(2, '0')}` : '';
   if (minutes >= 360) return hh === 0 ? `${WEEKDAYS[dow]} ${d}` : '';
   if (minutes >= 60) {
     if (hh === 0 && mm === 0) return `${WEEKDAYS[dow]} ${d}`;
-    return hh === 12 && mm === 0 ? '12 PM' : '';
+    return !compact && hh === 12 && mm === 0 ? '12 PM' : '';
   }
   // Short ranges: a label every hour (or every 15 minutes for 1-minute bars).
-  const every = minutes <= 1 ? 15 : 60;
+  const every = (minutes <= 1 ? 15 : 60) * (compact ? 2 : 1);
   if ((hh * 60 + mm) % every !== 0) return '';
   if (hh === 0 && mm === 0) return `${WEEKDAYS[dow]} ${d}`;
   const h12 = hh % 12 || 12;
@@ -55,6 +56,19 @@ export function TimeBarChart({ data, series, minutes, markers = [], h = 200 }) {
       xAxisProps={{ interval: 0, tickLine: false, tickFormatter: (v) => labelOf[v] ?? '', tick: { fontSize: 12, fill: 'var(--mantine-color-dimmed)' } }}
       yAxisProps={{ allowDecimals: false, tick: { fontSize: 12, fill: 'var(--mantine-color-dimmed)' } }}
       referenceLines={spacedMarkers(markers, data).map((m) => ({ x: m.at, label: m.label ? `▼ ${m.label}` : undefined, color: 'gray.6', labelPosition: 'insideTopLeft' }))}
+      tooltipProps={{ content: ({ label, payload }) => <BucketTooltip label={label} payload={payload} series={series} /> }} />
+  );
+}
+
+// Lines over time (Home dashboard cards, like Laminar's dashboard charts). Same data shape as TimeBarChart.
+export function TimeLineChart({ data, series, minutes, h = 180 }) {
+  const ticks = data.map((row, i) => ({ v: row.bucket, label: tickLabel(row.bucket, minutes, i, true) }));
+  const labelOf = Object.fromEntries(ticks.map((t) => [t.v, t.label]));
+  return (
+    <LineChart h={h} data={data} dataKey="bucket" series={series} gridAxis="x" withLegend={false} withDots={false}
+      curveType="linear" strokeWidth={1.5}
+      xAxisProps={{ interval: 0, tickLine: false, tickFormatter: (v) => labelOf[v] ?? '', tick: { fontSize: 12, fill: 'var(--mantine-color-dimmed)' } }}
+      yAxisProps={{ allowDecimals: false, tick: { fontSize: 12, fill: 'var(--mantine-color-dimmed)' } }}
       tooltipProps={{ content: ({ label, payload }) => <BucketTooltip label={label} payload={payload} series={series} /> }} />
   );
 }
