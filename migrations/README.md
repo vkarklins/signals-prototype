@@ -59,3 +59,14 @@ python -m unittest discover -s tests -v
 The schema checks compare fresh and migrated database definitions, verify existing
 data preservation and transaction rollback, and exercise constraints and nullable
 span references. They skip when `TEST_DATABASE_URL` is unset.
+
+## 002: Run human labels
+
+Apply once after migration 001 to add shared editable labels for Signal runs:
+
+```bash
+docker compose exec -T db psql -U signals -d signals_prototype -v ON_ERROR_STOP=1 < migrations/002_signal_run_reviews.sql
+```
+
+Restart/rebuild the API afterward. Existing runs remain unreviewed and original
+findings are preserved. Fresh databases include this table in `schema.sql`.

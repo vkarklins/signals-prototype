@@ -137,3 +137,13 @@ synced turns or all matching turns already have runs for that version.
 ## Signal health
 
 `GET /api/signal-health?period=7d` returns reporting boundaries, totals, and per-Signal counts for completed, queued, running, failed analyses and findings, plus success rate and most recent completion. Allowed periods: `24h`, `7d` (default), `30d`, `all`. Includes disabled Signals and all versions; runs are selected by creation time. Success rate is successful / (successful + failed), or null with no finished runs. Most recent completion includes successful and failed runs. Retries update current status rather than preserving attempt history. This read-only endpoint measures processing reliability, not detection accuracy or worker availability.
+
+## Run human labels
+
+`GET /api/signal-runs` includes nullable `human_label` and `reviewed_at` fields.
+`PUT /api/signal-runs/{run_id}/review` accepts `{"human_label": true}` (issue),
+`false` (no issue), or `null` (reset to unreviewed). Only successful runs can be
+reviewed; other states return 409 and missing runs return 404. One shared editable
+label is stored per run, including runs without findings. Labels do not alter
+model findings or trigger model calls. Outcomes compare presence of findings
+with the human label; unreviewed and unfinished runs are not assessed.

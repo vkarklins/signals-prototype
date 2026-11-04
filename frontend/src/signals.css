@@ -51,3 +51,17 @@
 .signal-run-error {color:var(--false);font-size:11px;line-height:1.5;}
 .signal-run-filter {padding:0 19px;}
 .signals-page > .signal-actions {font-size:12px;}
+
+.signal-runs-table {min-width:1200px;}
+.signal-runs-table th:nth-child(n) {width:11%;}
+.signal-runs-table th:nth-child(1) {width:26%;}
+.signal-runs-table th:nth-child(5) {width:15%;}
+.signal-runs-table th:nth-child(6) {width:9%;}
+.signal-runs-table th:nth-child(7) {width:12%;}
+.signal-runs-table th:nth-child(8) {width:12%;}
+
+.human-label-button {border:1px solid var(--line);gap:6px;align-items:center;}
+.human-label-button:hover:not(:disabled) {background:var(--accent-soft);color:var(--accent);}
+.run-label-editor {display:flex;flex-wrap:wrap;gap:8px;}
+.run-label-editor label {display:grid;gap:6px;font-size:11px;color:var(--muted);width:100%;}
+.run-label-editor select {width:100%;padding:6px;border:1px solid var(--line);border-radius:4px;background:var(--paper);}

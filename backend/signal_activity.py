@@ -19,11 +19,13 @@ def list_runs(response: Response, limit: int = Query(50, ge=1, le=200),
     with database(read_only=True) as conn:
         rows = conn.execute('''SELECT r.id, r.turn_id, r.signal_id, r.signal_version,
             r.status, r.model, r.error, r.created_at, r.finished_at,
+            review.human_label, review.updated_at AS reviewed_at,
             s.name AS signal_name, t.trace_id, t.conversation_id,
             t.item->'turns'->-1->>'user' AS user_message,
             (SELECT count(*) FROM signal_events e WHERE e.run_id=r.id) AS event_count
             FROM signal_runs r JOIN signals s ON s.id=r.signal_id
             JOIN turns t ON t.id=r.turn_id
+            LEFT JOIN signal_run_reviews review ON review.run_id=r.id
             WHERE (%s::uuid IS NULL OR r.signal_id=%s)
             ORDER BY r.created_at DESC, r.id DESC LIMIT %s OFFSET %s''',
             (signal_id, signal_id, limit, offset)).fetchall()
@@ -119,3 +121,26 @@ def signal_health(response: Response, period: Literal['24h', '7d', '30d', 'all']
                                      if r['last_completion']), default=None)
     return {'period': period, 'start': start, 'end': end, 'totals': totals,
             'signals': [{**row, 'success_rate': rate(row)} for row in rows]}
+
+
+class RunReviewRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    human_label: bool | None
+
+
+@router.put('/api/signal-runs/{run_id}/review')
+def save_run_review(run_id: UUID, body: RunReviewRequest):
+    with database() as conn, conn.transaction():
+        run = conn.execute('SELECT status FROM signal_runs WHERE id=%s FOR UPDATE', (run_id,)).fetchone()
+        if run is None:
+            raise HTTPException(404, 'Run not found.')
+        if run['status'] != 'succeeded':
+            raise HTTPException(409, 'Only completed analyses can be reviewed.')
+        if body.human_label is None:
+            conn.execute('DELETE FROM signal_run_reviews WHERE run_id=%s', (run_id,))
+            return {'run_id': run_id, 'human_label': None, 'reviewed_at': None}
+        row = conn.execute("""INSERT INTO signal_run_reviews(run_id, human_label)
+            VALUES (%s,%s) ON CONFLICT (run_id) DO UPDATE
+            SET human_label=EXCLUDED.human_label, updated_at=now()
+            RETURNING human_label, updated_at AS reviewed_at""", (run_id, body.human_label)).fetchone()
+        return {'run_id': run_id, **row}

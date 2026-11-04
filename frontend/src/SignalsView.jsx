@@ -121,16 +121,22 @@ export default function SignalsView({hidden}) {
         <div className="results-toolbar"><div><h2>{tab === 'runs' ? 'Signal runs' : 'Signal events'}</h2><p>Showing up to 50 {tab} per page. Refresh to load updates.</p></div>
           {run && <button className="secondary-button" onClick={() => {setRun(''); setOffset(0);}}>Show all events</button>}
         </div>
+        {tab === 'runs' && <p className="signal-help signal-run-filter">Click a human label to review whether this Signal applies. Outcomes compare your label with the prediction.</p>}
         {run && <p className="signal-help signal-run-filter">Events for run {run}</p>}
-        <div className="table-scroll"><table className="signal-activity-table"><thead><tr>
-          <th scope="col">{tab === 'runs' ? 'Latest user message' : 'Finding'}</th><th scope="col">Signal</th><th scope="col">{tab === 'runs' ? 'Status' : 'Severity'}</th><th scope="col">Created</th><th scope="col">Details</th>
+        <div className="table-scroll"><table className={`signal-activity-table ${tab === 'runs' ? 'signal-runs-table' : ''}`}><thead><tr>
+          <th scope="col">{tab === 'runs' ? 'Latest user message' : 'Finding'}</th>{tab === 'runs' && <><th scope="col">Human label</th><th scope="col">Predicted</th><th scope="col">Outcome</th></>}<th scope="col">Signal</th><th scope="col">{tab === 'runs' ? 'Status' : 'Severity'}</th><th scope="col">Created</th><th scope="col">Details</th>
         </tr></thead><tbody>
-          {!loading && !error && !rows.length && <tr><td colSpan="5" className="empty-table">No {tab} here yet. Enabled Signals analyze new conversations when the worker is running.</td></tr>}
+          {!loading && !error && !rows.length && <tr><td colSpan={tab === 'runs' ? 8 : 5} className="empty-table">No {tab} here yet. Enabled Signals analyze new conversations when the worker is running.</td></tr>}
           {rows.map(row => <tr key={row.id}>
             <td><p className="message-text">{tab === 'runs' ? row.user_message : row.summary}</p>
               {tab === 'events' && <details><summary>View evidence</summary><p>{row.evidence}</p><pre>{JSON.stringify({payload: row.payload, supporting_span_ids: row.supporting_span_ids}, null, 2)}</pre></details>}
               {row.error && <p className="signal-run-error">{row.error}</p>}
             </td>
+            {tab === 'runs' && <>
+              <td><RunLabel row={row} onSaved={review => setRows(current => current.map(item => item.id === row.id ? {...item, ...review} : item))} /></td>
+              <td>{row.status === 'succeeded' ? (row.event_count > 0 ? 'Issue detected' : 'No issue detected') : 'Not evaluated'}</td>
+              <td><RunOutcome row={row} /></td>
+            </>}
             <td><p className="message-text">{row.signal_name}</p><span className="message-meta">Version {row.signal_version} · Turn {row.turn_id}</span></td>
             <td><span className={`signal-status status-${row.status || row.severity}`}>{row.status || row.severity}</span></td>
             <td>{new Date(row.created_at).toLocaleString()}</td>
@@ -159,4 +165,41 @@ function HealthSummary({row}) {
     </section>
     <div className="outcome-summary"><span><i className="legend-dot dot-correct" />{row.queued} queued</span><span><i className="legend-dot dot-miss" />{row.running} running</span><span><i className="legend-dot dot-false" />{row.failed} failed</span><span>Last completion: {row.last_completion ? new Date(row.last_completion).toLocaleString() : '—'}</span></div>
   </>;
+}
+
+function RunOutcome({row}) {
+  if (row.status !== 'succeeded') return <span className="outcome">Not assessed</span>;
+  if (row.human_label == null) return <span className="outcome">Not assessed</span>;
+  const predicted = row.event_count > 0;
+  const [label, style] = row.human_label
+    ? (predicted ? ['Hit', 'hit'] : ['Miss', 'miss'])
+    : (predicted ? ['False alarm', 'false_alarm'] : ['Correct rejection', 'correct']);
+  return <span className={`outcome outcome-${style}`}>{label}</span>;
+}
+
+function RunLabel({row, onSaved}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [saving, setSaving] = useState(false), [error, setError] = useState('');
+  const label = row.human_label == null ? 'Unreviewed' : row.human_label ? 'Issue' : 'No issue';
+  async function save(event) {
+    event.preventDefault(); setSaving(true); setError('');
+    try {
+      const review = await request(`signal-runs/${row.id}/review`, {method: 'PUT',
+        body: JSON.stringify({human_label: value === '' ? null : value === 'yes'})});
+      onSaved(review); setEditing(false);
+    } catch (e) {setError(e.message);} finally {setSaving(false);}
+  }
+  if (!editing) return <button className="outcome human-label-button" disabled={row.status !== 'succeeded'}
+    aria-label={`Edit human label for ${row.signal_name}, turn ${row.turn_id}: ${label}`}
+    title={row.status === 'succeeded' ? 'Click to edit human label' : 'Complete analysis before reviewing'}
+    onClick={() => {setValue(row.human_label == null ? '' : row.human_label ? 'yes' : 'no'); setError(''); setEditing(true);}}>{label} <span aria-hidden="true">✎</span></button>;
+  return <form className="run-label-editor" onSubmit={save}>
+    <label>Human label<select autoFocus disabled={saving} value={value} onChange={e => setValue(e.target.value)}>
+      <option value="">Unreviewed</option><option value="yes">Issue</option><option value="no">No issue</option>
+    </select></label>
+    <button type="submit" className="context-toggle" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+    <button type="button" className="context-toggle" disabled={saving} onClick={() => setEditing(false)}>Cancel</button>
+    {error && <p role="alert" className="signal-run-error">{error}</p>}
+  </form>;
 }

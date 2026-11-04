@@ -141,3 +141,10 @@ CREATE INDEX signal_events_run_idx ON signal_events (run_id);
 -- Application responsibilities: validate JSON Schema and event payloads, verify
 -- cited spans against input_snapshot, and atomically save events + run success.
 -- Signal, run and event UUIDs are supplied by the application.
+
+-- Human judgments of whether a Signal applies to its target turn.
+CREATE TABLE signal_run_reviews (
+    run_id uuid PRIMARY KEY REFERENCES signal_runs(id) ON DELETE RESTRICT,
+    human_label boolean NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
