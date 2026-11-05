@@ -102,28 +102,28 @@ export default function TripwireList() {
     setSelected(new Set());
     setConfirming(false);
     setNotice(
-      `${plural(selectedIds.length, "tripwire")} deleted from this mock. Refresh to restore.`,
+      `${plural(selectedIds.length, "signal")} deleted from this mock. Refresh to restore.`,
     );
   }
 
   return (
     <Stack gap="md">
       <PageHeader
-        title="Tripwires"
-        description="View your tripwires and their results."
+        title="Signals"
+        description="View your signals and their results."
         actions={
           <Button
             component={Link}
             to={newTripwireUrl()}
             leftSection={<Icon name="plus" />}
           >
-            New tripwire
+            New signal
           </Button>
         }
       />
       <Group justify="space-between">
         <TextInput
-          aria-label="Search tripwires by name"
+          aria-label="Search signals by name"
           placeholder="Search by name…"
           leftSection={<Icon name="search" />}
           value={search}
@@ -145,7 +145,7 @@ export default function TripwireList() {
       </Group>
       <Group justify="space-between">
         <Text size="xs" c="dimmed" aria-live="polite">
-          {plural(rows.length, "tripwire")}
+          {plural(rows.length, "signal")}
         </Text>
         {rangeStart && (
           <Text size="xs" c="dimmed">
@@ -165,7 +165,7 @@ export default function TripwireList() {
               <Table.Th w={42}>
                 <Checkbox
                   radius="xs"
-                  aria-label="Select all visible tripwires"
+                  aria-label="Select all visible signals"
                   checked={allSelected}
                   indeterminate={someSelected && !allSelected}
                   disabled={!rows.length}
@@ -259,12 +259,12 @@ export default function TripwireList() {
       {!rows.length && (
         <Stack align="center" py="xl" gap="sm">
           <Text fw={500}>
-            {search.trim() ? "No matching tripwires" : "No tripwires yet"}
+            {search.trim() ? "No matching signals" : "No signals yet"}
           </Text>
           <Text size="sm" c="dimmed">
             {search.trim()
               ? "Try a different name."
-              : "Create a tripwire to get started."}
+              : "Create a signal to get started."}
           </Text>
           {search.trim() && (
             <Button variant="subtle" color="gray" onClick={() => setSearch("")}>
@@ -306,12 +306,12 @@ export default function TripwireList() {
       <Modal
         opened={confirming}
         onClose={() => setConfirming(false)}
-        title="Delete tripwires"
+        title="Delete signals"
         centered
       >
         <Text size="sm">
           Are you sure you want to delete{" "}
-          {plural(selectedIds.length, "tripwire")}?
+          {plural(selectedIds.length, "signal")}?
         </Text>
         <Text size="sm" c="dimmed" mt="xs">
           This only removes them from the mock list until you refresh.

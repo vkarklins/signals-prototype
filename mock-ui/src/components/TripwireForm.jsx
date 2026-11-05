@@ -395,7 +395,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
         color: "teal",
         text: editing
           ? `Changes to “${name.trim()}” are ready. Demo only: no changes were saved.`
-          : `“${name.trim()}” is ready. Demo only: no tripwire was saved or started.`,
+          : `“${name.trim()}” is ready. Demo only: no signal was saved or started.`,
       });
       return;
     }
@@ -430,7 +430,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
       await onSubmit(values);
       setNotice({
         color: "teal",
-        text: editing ? "Changes saved." : "Tripwire created.",
+        text: editing ? "Changes saved." : "Signal created.",
       });
     } catch {
       setNotice({
@@ -453,7 +453,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
     name: "Start from scratch",
     shortName: "Blank",
     icon: "plus",
-    description: "Create a custom tripwire",
+    description: "Create a custom signal",
   };
 
   return (
@@ -472,7 +472,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
             label="Name"
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
-            placeholder="Name your tripwire"
+            placeholder="Name your signal"
             maxLength={255}
             error={errors.name}
             data-autofocus
@@ -516,7 +516,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
           />
           <Stack gap="sm">
             <Group justify="space-between">
-              <Label help="The details to record in each tripwire event.">
+              <Label help="The details to record in each signal event.">
                 Output schema
               </Label>
               <Button
@@ -531,7 +531,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
               </Button>
             </Group>
             <Text size="xs" c="dimmed">
-              What should each tripwire event record?
+              What should each signal event record?
             </Text>
             {fields.map((field) => (
               <Box key={field.id} className={classes.schemaRow}>
@@ -606,7 +606,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
             value={trigger}
             onChange={setTrigger}
             label={
-              <Label help="When this tripwire starts analyzing a trace.">
+              <Label help="When this signal starts analyzing a trace.">
                 Triggers
               </Label>
             }
@@ -822,7 +822,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
                       disabled={!sample || !matchesPreset}
                       onClick={test}
                     >
-                      Test tripwire
+                      Test signal
                     </Button>
                   </Group>
                   {testResult && sample && (
@@ -842,7 +842,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
                           )}
                         </Stack>
                       ) : (
-                        "No tripwire event for this sample."
+                        "No signal event for this sample."
                       )}
                     </Alert>
                   )}
@@ -885,7 +885,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
                   </Button>
                 )}
                 <Button type="submit" loading={saving}>
-                  {editing ? "Save changes" : "Create tripwire"}
+                  {editing ? "Save changes" : "Create signal"}
                 </Button>
               </Group>
             </Group>

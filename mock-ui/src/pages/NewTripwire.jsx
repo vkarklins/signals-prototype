@@ -23,14 +23,14 @@ export default function NewTripwire() {
   return <>
     <TripwireList />
     <Drawer opened={opened} onClose={close} position="right" size="min(100%, 40rem)"
-      title={<Text fw={600}>New tripwire</Text>} padding="lg"
+      title={<Text fw={600}>New signal</Text>} padding="lg"
       transitionProps={{ transition: drawerTransition, duration: reducedMotion ? 0 : 500,
         exitDuration: reducedMotion ? 0 : 300, timingFunction: 'cubic-bezier(.4,0,.2,1)' }}
       onExitTransitionEnd={() => navigate(tripwireListUrl())}
       overlayProps={{ backgroundOpacity: 0.55,
         transitionProps: { duration: reducedMotion ? 0 : 150, exitDuration: reducedMotion ? 0 : 150,
           timingFunction: 'cubic-bezier(.4,0,.2,1)' } }}
-      closeButtonProps={{ 'aria-label': 'Close new tripwire' }}>
+      closeButtonProps={{ 'aria-label': 'Close new signal' }}>
       <TripwireForm mode="create" onCancel={close} />
     </Drawer>
   </>;

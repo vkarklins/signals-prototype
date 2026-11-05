@@ -35,7 +35,7 @@ function NotificationRow({ notification: n, data }) {
           <Group gap="xs"><Box component="span" className={classes.dot} hidden={n.read} aria-label="Unread" /><Text size="xs" c="dimmed">{formatTime(n.time)}</Text></Group>
         </Group>
         <Box component="dl" className={classes.metadata}>
-          <Text component="dt" size="xs" c="dimmed">Tripwire</Text><Text component="dd" size="sm">{d.tripwire?.name || 'Tripwire unavailable'}</Text>
+          <Text component="dt" size="xs" c="dimmed">Signal</Text><Text component="dd" size="sm">{d.tripwire?.name || 'Signal unavailable'}</Text>
           <Text component="dt" size="xs" c="dimmed">Cluster</Text><Text component="dd" size="sm">{d.cluster?.name || 'Cluster unavailable'}</Text>
         </Box>
         {d.summary && <Text size="sm" c="dimmed">{d.summary}</Text>}
@@ -76,7 +76,7 @@ export default function Notifications() {
   const notifications = data.filteredNotifications({ severity, unreadOnly });
   return (
     <Stack gap="lg" maw={1100}>
-      <PageHeader title="Notifications" description="View new clusters and tripwire event alerts." />
+      <PageHeader title="Notifications" description="View new clusters and signal event alerts." />
       <Box className={classes.filters} role="group" aria-label="Notification severity">
         {['all', 'critical', 'warning', 'info'].map((value) => <UnstyledButton key={value} className={classes.filter} aria-pressed={severity === value} onClick={() => setSeverity(value)}>
           {value !== 'all' && <NotificationIcon severity={value} />}<Text size="sm">{value[0].toUpperCase() + value.slice(1)}</Text><Text size="sm" c="dimmed">{counts[value]}</Text>
