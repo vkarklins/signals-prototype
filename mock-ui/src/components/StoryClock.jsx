@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, useState } from 'react';
 import { SegmentedControl, Tooltip, Group, Text } from '@mantine/core';
+import { withNotificationData, readNotificationIds, saveNotificationIds } from './notificationData';
 import { STORY_DAYS, DEFAULT_STORY_DAY, makeStoryData } from '../mock/data';
 
 // The story clock: which day of the Olympic story the mock is showing.
@@ -25,7 +26,19 @@ export function StoryClockProvider({ children }) {
   // With the picker hidden, ignore any day saved earlier, so nobody gets stuck on a day they can't see.
   const activeId = SHOW_STORY_DAY_PICKER ? dayId : DEFAULT_STORY_DAY;
   const day = STORY_DAYS.find((d) => d.id === activeId) ?? STORY_DAYS.find((d) => d.id === DEFAULT_STORY_DAY);
-  const data = useMemo(() => makeStoryData(day.asOf), [day.asOf]);
+  const base = useMemo(() => makeStoryData(day.asOf), [day.asOf]);
+  const [readIds, setReadIds] = useState(readNotificationIds);
+  const data = useMemo(() => {
+    const markIds = (ids) => setReadIds((previous) => {
+      const next = [...new Set([...previous, ...ids])];
+      saveNotificationIds(next);
+      return next;
+    });
+    return withNotificationData(base, readIds, {
+      markNotificationRead: (id) => { if (base.notifications.some((n) => n.id === id)) markIds([id]); },
+      markAllNotificationsRead: () => markIds(base.notifications.map((n) => n.id)),
+    });
+  }, [base, readIds]);
   const value = useMemo(() => ({ day, setDayId, data }), [day, data]);
   return <StoryClockContext.Provider value={value}>{children}</StoryClockContext.Provider>;
 }
