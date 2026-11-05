@@ -9,6 +9,7 @@ import { SeverityBadge, KindBadge, StatusBadge } from '../components/Badges';
 import { TimeBarChart } from '../components/Charts';
 import TimeRangePicker from '../components/TimeRangePicker';
 import PageHeader from '../components/PageHeader';
+import TripwireForm from '../components/TripwireForm';
 import { formatTime, formatRelative, formatCost, shortId, plural } from '../components/format';
 import { tripwireListUrl, laminarTraceUrl } from '../components/links';
 import { rangeFromParams, bucketMinutesFor, makeBuckets, bucketIndex, shortLabel } from '../components/timeRange';
@@ -62,7 +63,7 @@ export default function TripwireDetail() {
 
       {tab === 'events' && <EventsTab tripwire={tripwire} params={params} update={update} />}
       {tab === 'runs' && <RunsTab tripwire={tripwire} params={params} update={update} />}
-      {tab === 'settings' && <SettingsTab params={params} update={update} />}
+      {tab === 'settings' && <SettingsTab tripwire={tripwire} params={params} update={update} />}
 
       <EventDrawer tripwire={tripwire} eventId={params.get('event')} update={update} />
     </Stack>
@@ -332,8 +333,8 @@ function runCell(column, r, data, update) {
 }
 
 // ---------------------------------------------------------------- Settings tab
-// Laminar's section menu (General / Versions / Alerts / Backfill). Every section is a placeholder for now:
-// General will be the shared TripwireForm in edit mode; the others get built once we've seen Laminar's versions.
+// Laminar's section menu (General / Versions / Alerts / Backfill). General is the shared TripwireForm in edit mode;
+// the others are placeholders until we've seen Laminar's versions.
 
 const SECTIONS = [
   { id: 'general', label: 'General' },
@@ -342,7 +343,7 @@ const SECTIONS = [
   { id: 'backfill', label: 'Backfill' },
 ];
 
-function SettingsTab({ params, update }) {
+function SettingsTab({ tripwire, params, update }) {
   const section = SECTIONS.find((x) => x.id === params.get('section')) ?? SECTIONS[0];
   return (
     <Group align="flex-start" gap="xl" wrap="nowrap">
@@ -356,7 +357,9 @@ function SettingsTab({ params, update }) {
       </Stack>
       <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
         <Title order={3}>{section.label}</Title>
-        <Text c="dimmed">Placeholder</Text>
+        {section.id === 'general'
+          ? <TripwireForm mode="edit" initialValues={tripwire} />
+          : <Text c="dimmed">Placeholder</Text>}
       </Stack>
     </Group>
   );
