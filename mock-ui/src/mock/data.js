@@ -630,16 +630,28 @@ export function makeStoryData(asOf = NOW) {
   }));
 
   // One row per tripwire, for the Tripwire list (same columns as Laminar's Signals list).
-  const tripwireSummary = (tripwireId) => {
+  const tripwireSummary = (tripwireId, { days } = {}) => {
     const t = getTripwire(tripwireId);
-    const own = eventsFor(tripwireId);
+    if (!t) return null;
+    // Calendar days ending at the story clock, including its partially completed day.
+    // Omitting days preserves the summaries used by existing pages.
+    if (days !== undefined && (!Number.isInteger(days) || days < 1)) {
+      throw new RangeError('days must be a positive integer');
+    }
+    const start = new Date(`${asOfDate}T00:00:00Z`);
+    if (days !== undefined) start.setUTCDate(start.getUTCDate() - days + 1);
+    const rangeStart = days === undefined ? null : start.toISOString().slice(0, 10);
+    const own = eventsFor(tripwireId).filter((e) => !rangeStart || e.time.slice(0, 10) >= rangeStart);
     return {
       ...t,
       events: own.length,
-      clusters: leafClusters(tripwireId).length,
-      runs: runsFor(tripwireId).length,
-      activity: eventsPerDay(tripwireId).filter((d) => d.events !== null).map((d) => d.events),
+      // Leaf clusters with events in the range (unclustered events don't count as a cluster).
+      clusters: new Set(own.map((e) => e.clusterId).filter(Boolean)).size,
+      runs: runsFor(tripwireId).filter((r) => !rangeStart || r.time.slice(0, 10) >= rangeStart).length,
+      activity: eventsPerDay(tripwireId).filter((d, i) => d.events !== null
+        && (!rangeStart || DAYS[i] >= rangeStart)).map((d) => d.events),
       lastEventAt: own[0]?.time ?? null,
+      rangeStart,
     };
   };
 
