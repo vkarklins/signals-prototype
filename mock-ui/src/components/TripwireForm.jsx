@@ -250,7 +250,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
   const [spanName, setSpanName] = useState(initialValues?.spanName ?? "");
   const [filters, setFilters] = useState(() =>
     (
-      initialValues?.triggerFilters ??
+      initialValues?.filters ??
       (editing ? [] : [{ field: "total_token_count", op: "gt", value: 1000 }])
     ).map((filter) => ({
       ...filter,
@@ -261,7 +261,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
         : filter.value,
     })),
   );
-  const [sampling, setSampling] = useState(initialValues?.sampleRate ?? 100);
+  const [sampling, setSampling] = useState(initialValues?.sampling ?? 100);
   const [active, setActive] = useState(initialValues?.status !== "paused");
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -412,7 +412,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
       })),
       trigger,
       spanName: trigger === "span" ? spanName.trim() : "",
-      triggerFilters: filters.map(({ id, operator, ...filter }) => ({
+      filters: filters.map(({ id, operator, ...filter }) => ({
         ...filter,
         op: operator,
         value:
@@ -422,7 +422,7 @@ function TripwireFormFields({ initialValues, mode, onSubmit, onCancel }) {
               ? listValues(String(filter.value))
               : filter.value,
       })),
-      sampleRate: sampling,
+      sampling,
       status: active ? "active" : "paused",
     };
     setSaving(true);
